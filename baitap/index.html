@@ -2,9 +2,16 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Bài tập về nhà – IELTS Hannah</title>
 <meta name="theme-color" content="#0E7C72">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="IELTS Hannah">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -416,6 +423,10 @@ details.card>summary{cursor:pointer;list-style:none}details.card[open]>summary{m
 .ovg{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:10px}.ovg>div{background:#FBF7F2;border-radius:10px;padding:8px 10px}.ovg>div>span:first-child{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
 .ovatt{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}.ovp{display:flex;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line);cursor:pointer}.ovp span:first-child{font-weight:600}.ovp small{flex:1;color:var(--bad)}
 .rprow{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}.rprow .n{flex:1;min-width:0}.rpbtn{display:flex;gap:6px;flex:none}
+#pwabar{position:fixed;left:10px;right:10px;bottom:12px;z-index:60;max-width:520px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px rgba(31,42,51,.18);display:flex;align-items:center;gap:10px;padding:10px 10px 10px 12px;animation:fcpop .4s ease}
+#pwabar img{width:44px;height:44px;border-radius:10px;border:1px solid var(--line)}#pwabar .t{flex:1;min-width:0}#pwabar .t b{display:block;font-size:15px}#pwabar .t span{font-size:12.5px;color:var(--muted)}
+#pwabar .x{border:0;background:transparent;font-size:18px;color:var(--muted);padding:6px;cursor:pointer}.pwasteps{padding-left:20px;line-height:1.7}.pwai{font-size:18px}
+@media (display-mode: standalone){body{padding-top:env(safe-area-inset-top)}}
 </style>
 </head>
 <body>
@@ -3282,6 +3293,37 @@ function lpOpen(lv, m, s){
   }
   load();
 }
+
+
+/* ===== App cài được (PWA) – chỉ có ở bản hoc.ieltshannah.com ===== */
+var PWA={deferred:null};
+function pwaStandalone(){ try{ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true; }catch(e){ return false; } }
+function pwaIOS(){ return /iPhone|iPad|iPod/i.test(navigator.userAgent||'') || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1); }
+function pwaInit(){
+  if(!BOOT.standalone) return;
+  if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
+  window.addEventListener('beforeinstallprompt',function(e){ e.preventDefault(); PWA.deferred=e; pwaBar(); });
+  window.addEventListener('appinstalled',function(){ PWA.deferred=null; var b=document.getElementById('pwabar'); if(b) b.remove(); toast('Đã cài app IELTS Hannah 🎉 Lần sau con mở từ biểu tượng trên màn hình nhé.'); });
+  window.addEventListener('offline',function(){ toast('Con đang mất mạng – kết nối lại rồi làm tiếp nhé.'); });
+  setTimeout(pwaBar,2500);
+}
+function pwaBar(){
+  if(!BOOT.standalone || pwaStandalone() || document.getElementById('pwabar')) return;
+  try{ var t=Number(localStorage.getItem('pwa_hide')||0); if(t && Date.now()-t<5*864e5) return; }catch(e){}
+  if(!PWA.deferred && !pwaIOS() && !inAppBrowser()) return; // trình duyệt chưa hỗ trợ cài → không làm phiền
+  var d=document.createElement('div'); d.id='pwabar';
+  d.innerHTML='<img src="icon-96.png" alt=""><div class="t"><b>Cài app IELTS Hannah</b><span>Mở nhanh từ màn hình điện thoại, ghi âm ổn định</span></div><button class="btn sm" id="pwago">📲 Cài</button><button class="x" id="pwax" aria-label="Đóng">✕</button>';
+  document.body.appendChild(d);
+  document.getElementById('pwax').onclick=function(){ try{ localStorage.setItem('pwa_hide',String(Date.now())); }catch(e){} d.remove(); };
+  document.getElementById('pwago').onclick=pwaInstall;
+}
+function pwaInstall(){
+  if(PWA.deferred){ PWA.deferred.prompt(); PWA.deferred.userChoice.then(function(){ PWA.deferred=null; }); return; }
+  if(inAppBrowser()){ modal('<h3>Mở bằng trình duyệt để cài app</h3><p>Ba mẹ bấm <b>⋯</b> ở góc trên → chọn <b>Mở bằng trình duyệt</b> (Chrome hoặc Safari), rồi bấm <b>📲 Cài</b> lần nữa nhé.</p>',[{label:'Đã hiểu',value:true}]); return; }
+  if(pwaIOS()){ modal('<h3>Cài app trên iPhone / iPad</h3><ol class="pwasteps"><li>Mở trang này bằng <b>Safari</b>.</li><li>Bấm nút <b>Chia sẻ</b> <span class="pwai">⬆️</span> ở thanh dưới cùng.</li><li>Kéo xuống, chọn <b>Thêm vào MH chính</b> (Add to Home Screen) → <b>Thêm</b>.</li></ol><p class="muted small">Mở app lần đầu, con nhập lại mã học viên 1 lần nhé.</p>',[{label:'Đã hiểu',value:true}]); return; }
+  modal('<h3>Cài app</h3><p>Bấm <b>⋮</b> ở góc trên của Chrome → chọn <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b>.</p>',[{label:'Đã hiểu',value:true}]);
+}
+pwaInit();
 
 </script>
 </body>

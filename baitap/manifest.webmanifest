@@ -1,0 +1,17 @@
+{
+  "name": "IELTS Hannah – Bài tập về nhà",
+  "short_name": "IELTS Hannah",
+  "description": "Bài tập về nhà, ôn từ mỗi ngày và theo dõi tiến độ học tập – IELTS Hannah",
+  "lang": "vi",
+  "start_url": "./?app=1",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0E7C72",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
