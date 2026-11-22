@@ -423,6 +423,22 @@ details.card>summary{cursor:pointer;list-style:none}details.card[open]>summary{m
 .ovg{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:10px}.ovg>div{background:#FBF7F2;border-radius:10px;padding:8px 10px}.ovg>div>span:first-child{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
 .ovatt{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}.ovp{display:flex;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line);cursor:pointer}.ovp span:first-child{font-weight:600}.ovp small{flex:1;color:var(--bad)}
 .rprow{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}.rprow .n{flex:1;min-width:0}.rpbtn{display:flex;gap:6px;flex:none}
+/* ---------- Đua vịt + chia nhóm ---------- */
+.funbtns{display:flex;gap:10px;margin:-4px 0 14px;flex-wrap:wrap}.funbtns .btn{flex:1;min-width:150px}
+.funv{background:#F4FBFF}.dkwrap{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:10px 14px 14px;max-width:1100px;width:100%;margin:0 auto;box-sizing:border-box}
+.dkwin{text-align:center;font-size:18px;min-height:86px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.dkname-big{font-size:34px;font-weight:800;color:var(--accent);line-height:1.2}
+.dktrack{flex:1;overflow:auto;background:linear-gradient(180deg,#BFE6F7,#8FD0EE);border-radius:16px;padding:6px 8px}
+.dklane{display:flex;align-items:center;gap:8px;border-bottom:2px dashed rgba(255,255,255,.7);padding:3px 0;min-height:30px}
+.dkname{width:120px;flex:none;font-size:13px;font-weight:700;color:#0b3a52;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dkrun{flex:1;position:relative;height:28px}.dk{position:absolute;left:0;top:0;font-size:24px;line-height:28px;will-change:transform;transform:scaleX(-1)}
+.dkflag{font-size:18px}.dklane.win{background:rgba(255,236,150,.85);border-radius:10px}.dklane.win .dkname{color:var(--accent)}
+.dkbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;flex-wrap:wrap}
+.gpwrap{max-width:1100px;margin:0 auto;padding:14px 16px 40px}.gpk{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;font-weight:700}
+.gpk button[data-k]{width:44px;height:44px;border-radius:12px;border:2px solid var(--line);background:#fff;font-size:18px;font-weight:800;cursor:pointer}.gpk button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.gpgrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+.gp{background:#fff;border-radius:16px;border-top:6px solid var(--c);box-shadow:var(--shadow);padding:12px 14px}.gp h3{margin:0 0 8px;color:var(--c)}.gp h3 small{color:var(--muted);font-weight:600}
+.gpn{padding:6px 0;border-bottom:1px solid var(--line);font-weight:600;animation:fcpop .45s ease both}
 #pwabar{position:fixed;left:10px;right:10px;bottom:12px;z-index:60;max-width:520px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px rgba(31,42,51,.18);display:flex;align-items:center;gap:10px;padding:10px 10px 10px 12px;animation:fcpop .4s ease}
 #pwabar img{width:44px;height:44px;border-radius:10px;border:1px solid var(--line)}#pwabar .t{flex:1;min-width:0}#pwabar .t b{display:block;font-size:15px}#pwabar .t span{font-size:12.5px;color:var(--muted)}
 #pwabar .x{border:0;background:transparent;font-size:18px;color:var(--muted);padding:6px;cursor:pointer}.pwasteps{padding-left:20px;line-height:1.7}.pwai{font-size:18px}
@@ -438,7 +454,7 @@ var BOOT = (function(){
   var q = {}; location.search.replace(/^\?/,'').split('&').forEach(function(kv){ if(!kv) return; var p=kv.split('='); q[decodeURIComponent(p[0])]=decodeURIComponent((p[1]||'').replace(/\+/g,' ')); });
   var api = CENTER_API;
   return { standalone:true, api:api, url:api, pageUrl:location.origin+location.pathname, level:q.lop||'', teacher:q.gv==='1', ma:q.ma||'', ph:q.ph||'', center:'IELTS Hannah',
-    levels:[{key:'superkids',name:'Super Kids',group:'kids'},{key:'happykids',name:'Happy Kids',group:'kids'},{key:'starters',name:'Starters',group:'kids'},{key:'movers',name:'Movers',group:'kids'},{key:'flyers',name:'Flyers',group:'kids'},{key:'xaynen',name:'Xây Nền',group:'teen'},{key:'ielts_l',name:'IELTS Listening',group:'ielts'},{key:'ielts_r',name:'IELTS Reading',group:'ielts'},{key:'ielts_s',name:'IELTS Speaking',group:'ielts'},{key:'ielts_w',name:'IELTS Writing',group:'ielts'}] };
+    levels:[{key:'superkids',name:'Super Kids',group:'kids'},{key:'happykids',name:'Happy Kids',group:'kids'},{key:'starters',name:'Starters',group:'kids'},{key:'movers',name:'Movers',group:'kids'},{key:'flyers',name:'Flyers',group:'kids'},{key:'xaynen',name:'Xây Nền',group:'teen'},{key:'ielts_l',name:'IELTS Listening',group:'ielts'},{key:'ielts_r',name:'IELTS Reading',group:'ielts'},{key:'ielts_s',name:'IELTS Speaking',group:'ielts'},{key:'ielts_w',name:'Bổ trợ ngữ pháp (8 buổi)',group:'ielts'}] };
 })();
 </script>
 <script>/* qrcode-generator 1.4.4 (MIT, Kazuhiko Arase) – vẽ mã QR trên thẻ học viên */
@@ -451,7 +467,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 var LV = {};
 var LEVEL_STYLE = {
   superkids:{c:'#E2467F',i:'🦸'}, happykids:{c:'#F0604D',i:'🧸'}, starters:{c:'#E79A16',i:'🌱'}, movers:{c:'#169F68',i:'🚲'}, flyers:{c:'#2F7BE0',i:'✈️'},
-  xaynen:{c:'#7B57E0',i:'🧱'}, ielts_l:{c:'#0E7C72',i:'🎧'}, ielts_r:{c:'#0B6E8E',i:'📖'}, ielts_s:{c:'#B4447A',i:'🗣️'}, ielts_w:{c:'#5A6B2E',i:'✍️'}
+  xaynen:{c:'#7B57E0',i:'🧱'}, ielts_l:{c:'#0E7C72',i:'🎧'}, ielts_r:{c:'#0B6E8E',i:'📖'}, ielts_s:{c:'#B4447A',i:'🗣️'}, ielts_w:{c:'#5A6B2E',i:'🧩'}
 };
 BOOT.levels.forEach(function(l){ LV[l.key] = l; });
 
@@ -971,6 +987,85 @@ function tabReports(){
   $$('[data-rp]').forEach(function(b){ b.onclick=function(){ copyText(r.rows[+b.dataset.rp].text); }; });
   $$('[data-rv]').forEach(function(b){ b.onclick=function(){ modal('<pre class="rppre">'+esc(r.rows[+b.dataset.rv].text)+'</pre>',[{label:'📋 Chép',value:'c'},{label:'Đóng',cls:'plain',value:false}]).then(function(v){ if(v==='c') copyText(r.rows[+b.dataset.rv].text); }); }; });
 }
+/* ================= Đua vịt gọi khảo bài + Chia nhóm ngẫu nhiên (tab 👧 Học viên) ================= */
+var FUN={called:{}};
+function funNames(){
+  var hit=(T.stCache||{})[T.stCls]; if(!hit) return [];
+  return hit.list.filter(function(s){ return s.active; }).map(function(s){ return s.name; });
+}
+function funShuffle(a){ a=a.slice(); for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+function shortName(n){ var p=String(n).trim().split(/\s+/); return p.length>2?p.slice(-2).join(' '):n; }
+
+/* ----- Đua vịt ----- */
+function duckRace(){
+  var all=funNames(); if(!all.length){ toast('Lớp chưa có học viên'); return; }
+  var cls=T.stCls, called=FUN.called[cls]=FUN.called[cls]||[];
+  var L=$('#layer');
+  var render=function(){
+    var skip=$('#dkskip')?$('#dkskip').checked:true;
+    var pool=all.filter(function(n){ return !skip || called.indexOf(n)<0; });
+    if(!pool.length){ called.length=0; pool=all.slice(); toast('Cả lớp đã được gọi – bắt đầu vòng mới!'); }
+    var lanes=funShuffle(pool);
+    L.innerHTML='<div class="pfv funv"><div class="pfbar"><button class="btn sm plain" id="dkx">✕ Đóng</button><b>🦆 Đua vịt – '+esc(cls)+'</b><span class="muted small" style="margin-left:auto">'+pool.length+' bạn</span></div>'+
+      '<div class="dkwrap"><div class="dkwin" id="dkwin">Bấm <b>Bắt đầu</b> để thả vịt! 🏁</div><div class="dktrack" id="dktrack">'+
+      lanes.map(function(n,i){ var sn=shortName(n), dup=lanes.filter(function(x){ return shortName(x)===sn; }).length>1; return '<div class="dklane"><span class="dkname" title="'+esc(n)+'">'+esc(dup?n:sn)+'</span><div class="dkrun"><span class="dk" data-i="'+i+'">🦆</span></div><span class="dkflag">🏁</span></div>'; }).join('')+'</div>'+
+      '<div class="dkbar"><label class="switch small"><input type="checkbox" id="dkskip" '+(skip?'checked':'')+'> Bỏ qua bạn đã được gọi'+(called.length?' ('+called.length+')':'')+'</label><button class="btn lg" id="dkgo">🏁 Bắt đầu</button></div></div></div>';
+    $('#dkx').onclick=function(){ L.innerHTML=''; };
+    $('#dkskip').onchange=render;
+    $('#dkgo').onclick=function(){ race(lanes); };
+  };
+  var race=function(lanes){
+    var btn=$('#dkgo'); btn.disabled=true; $('#dkskip').disabled=true;
+    var ducks=$$('.dk',L), n=ducks.length, pos=[], sp=[], winner=-1, t0=performance.now();
+    var track=$('.dkrun',L), W=track.clientWidth-34;
+    for(var i=0;i<n;i++){ pos[i]=0; sp[i]=0.6+Math.random()*0.5; }
+    var lucky=Math.floor(Math.random()*n); // bạn được gọi, chọn ngẫu nhiên công bằng
+    $('#dkwin').innerHTML='Vịt đang chạy… 🦆💨';
+    var step=function(now){
+      var el=(now-t0)/1000, done=false;
+      for(var i=0;i<n;i++){
+        if(Math.random()<0.08) sp[i]=0.45+Math.random()*0.7;   // tăng tốc / chững lại cho vui
+        var boost=(i===lucky && el>3.2)?0.55:0;                  // về cuối, vịt may mắn bứt lên
+        var cap=(i!==lucky && el>2.5)?0.93:1;                    // các vịt khác không vượt vạch trước
+        pos[i]=Math.min(W*cap, pos[i]+(sp[i]+boost)*W/420);
+        ducks[i].style.transform='translateX('+pos[i]+'px) scaleX(-1)'+(Math.floor(now/120+i)%2?' rotate(-6deg)':' rotate(6deg)');
+        if(i===lucky && pos[i]>=W) done=true;
+      }
+      if(!done && el<9) requestAnimationFrame(step);
+      else finish(lucky);
+    };
+    var finish=function(i){
+      var name=lanes[i]; called.push(name);
+      ducks[i].parentNode.parentNode.classList.add('win');
+      $('#dkwin').innerHTML='<div class="confetti">🎉✨🎊</div><div class="dkname-big">'+esc(name)+'</div><div class="muted">lên khảo bài nhé! 💪</div>';
+      btn.disabled=false; btn.textContent='🔁 Đua tiếp'; btn.onclick=render; $('#dkskip').disabled=false;
+    };
+    requestAnimationFrame(step);
+  };
+  render();
+}
+
+/* ----- Chia nhóm ----- */
+function splitGroups(){
+  var all=funNames(); if(!all.length){ toast('Lớp chưa có học viên'); return; }
+  var cls=T.stCls, L=$('#layer'), k=FUN.k||4;
+  var draw=function(){
+    var sh=funShuffle(all), g=[]; for(var i=0;i<k;i++) g.push([]);
+    sh.forEach(function(n,i){ g[i%k].push(n); });
+    FUN.last=g;
+    var colors=['#0E7C72','#F0604D','#7B57E0','#E8A317','#0B6E8E','#B4447A'];
+    L.innerHTML='<div class="pfv funv"><div class="pfbar"><button class="btn sm plain" id="gpx">✕ Đóng</button><b>👥 Chia nhóm – '+esc(cls)+'</b><span class="muted small" style="margin-left:auto">'+all.length+' bạn</span></div>'+
+      '<div class="pfscroll"><div class="gpwrap"><div class="gpk">Số nhóm: '+[2,3,4,5,6].map(function(x){ return '<button class="'+(x===k?'on':'')+'" data-k="'+x+'">'+x+'</button>'; }).join('')+
+      '<button class="btn sm" id="gpre">🔀 Chia lại</button><button class="btn sm plain" id="gpcp">📋 Chép</button></div>'+
+      '<div class="gpgrid g'+k+'">'+g.map(function(m,i){ return '<div class="gp" style="--c:'+colors[i]+'"><h3>Nhóm '+(i+1)+' <small>('+m.length+')</small></h3>'+m.map(function(n,j){ return '<div class="gpn" style="animation-delay:'+(j*60+i*30)+'ms">'+esc(n)+'</div>'; }).join('')+'</div>'; }).join('')+'</div></div></div></div>';
+    $('#gpx').onclick=function(){ L.innerHTML=''; };
+    $('#gpre').onclick=draw;
+    $$('[data-k]',L).forEach(function(b){ b.onclick=function(){ k=FUN.k=+b.dataset.k; draw(); }; });
+    $('#gpcp').onclick=function(){ copyText('👥 Chia nhóm lớp '+cls+'\n\n'+g.map(function(m,i){ return 'Nhóm '+(i+1)+': '+m.join(', '); }).join('\n')); };
+  };
+  draw();
+}
+
 function startStudent(){
   var ma=BOOT.ma||'';
   if(!ma){ try{ var m=location.search.match(/[?&]ma=([^&]+)/); if(m) ma=decodeURIComponent(m[1]); }catch(e){} }
@@ -2757,6 +2852,7 @@ function tabStudents(){
   var cr=avgRate(act);
   $('#tb').innerHTML=head+
     '<div class="stsum"><div><b>'+act.length+'</b><span>đang học</span></div><div><b>'+(cr===null?'–':cr+'%')+'</b><span>nộp bài TB</span></div><div class="'+(weak.length?'bad':'')+'"><b>'+weak.length+'</b><span>nộp dưới 60%</span></div></div>'+
+    '<div class="funbtns"><button class="btn soft" id="fduck">🦆 Đua vịt gọi khảo bài</button><button class="btn soft" id="fgrp">👥 Chia nhóm</button></div>'+
     '<div class="card"><div class="row" style="margin-bottom:6px"><input type="search" id="stq" placeholder="🔎 Tìm tên học viên…" value="'+esc(T.stQ)+'" style="flex:1;min-width:160px">'+
     '<select id="stf" style="width:auto"><option value="all"'+(T.stF==='all'?' selected':'')+'>Đang học</option><option value="weak"'+(T.stF==='weak'?' selected':'')+'>Nộp bài dưới 60%</option><option value="fire"'+(T.stF==='fire'?' selected':'')+'>🔥 Xếp theo chuỗi ngày học</option>'+(isAdmin()?'<option value="off"'+(T.stF==='off'?' selected':'')+'>Đã nghỉ / bảo lưu</option>':'')+'</select>'+
     '<button class="btn sm plain" id="strf" title="Tính lại">↻</button></div>'+
@@ -2768,6 +2864,7 @@ function tabStudents(){
   $('#stf').onchange=function(){ T.stF=this.value; tabStudents(); };
   $('#strf').onclick=function(){ delete T.stCache[key]; tabStudents(); };
   $$('[data-pf]').forEach(function(r){ r.onclick=function(){ openProfile(r.dataset.pf); }; });
+  $('#fduck').onclick=duckRace; $('#fgrp').onclick=splitGroups;
   stBindAdd(lv);
 }
 function plainVi(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().trim(); }
