@@ -960,7 +960,7 @@ function tabOverview(){
 function tabReports(){
   var cls=allMyClasses();
   if(!T.rpCls || cls.indexOf(T.rpCls)<0) T.rpCls=cls[0]||'';
-  var head='<h2 style="margin-top:0">Báo cáo tháng gửi phụ huynh</h2><p class="muted" style="margin-top:-6px">Tự tạo sau buổi kiểm tra tháng (điểm lấy từ Sổ Lớp, tối hôm đó khoảng 23h). Phụ huynh xem trên link; cô chép dán Zalo nếu muốn.</p>'+
+  var head='<h2 style="margin-top:0">Kiểm tra tháng – báo cáo gửi phụ huynh</h2><p class="muted" style="margin-top:-6px">Tự tạo sau buổi kiểm tra tháng (điểm lấy từ Sổ Lớp, tối hôm đó khoảng 23h). Phụ huynh xem trên link; cô chép dán Zalo nếu muốn.</p>'+
     '<div class="filter" id="rpcls">'+cls.map(function(c){ return '<button data-c="'+esc(c)+'" class="'+(c===T.rpCls?'on':'')+'">'+esc(c)+'</button>'; }).join('')+'</div>';
   var bindTop=function(){ $$('#rpcls button').forEach(function(b){ b.onclick=function(){ T.rpCls=b.dataset.c; T.rpTest=''; tabReports(); }; }); };
   if(!T.rpCls){ $('#tb').innerHTML=head+'<div class="card empty">Chưa có lớp.</div>'; return; }
@@ -972,7 +972,7 @@ function tabReports(){
   }
   var r=hit, mk=isAdmin()?'<button class="btn sm soft" id="rpmake">🔄 Cập nhật báo cáo tháng</button>':'';
   var html=head+'<div class="row" style="margin-bottom:10px">'+(r.tests.length?'<select id="rpw" style="width:auto">'+r.tests.map(function(t){ return '<option value="'+esc(t.id)+'"'+(t.id===r.test?' selected':'')+'>'+esc(t.title)+' ('+fmtD(t.date)+')</option>'; }).join('')+'</select>':'')+mk+
-    '<button class="btn sm plain" id="rplinks">👪 Link phụ huynh cả lớp</button></div>';
+    (isAdmin()?'<button class="btn sm plain" id="rplinks">👪 Link phụ huynh cả lớp</button>':'')+'</div>';
   if(!r.rows.length) html+='<div class="card empty"><div class="e">📨</div>Lớp này chưa có báo cáo tháng. Sau khi cô nhập điểm kiểm tra tháng vào Sổ Lớp, tối hôm đó báo cáo sẽ tự có ở đây'+(isAdmin()?' (hoặc chị bấm <b>"Cập nhật báo cáo tháng"</b> sau 22:17).':'.')+'</div>';
   else {
     html+='<div class="card"><div class="row between"><div><b>'+r.rows.length+' báo cáo</b></div><button class="btn sm" id="rpall">📋 Chép cả lớp</button></div>'+
@@ -982,7 +982,7 @@ function tabReports(){
   $('#tb').innerHTML=html; bindTop();
   if($('#rpw')) $('#rpw').onchange=function(){ T.rpTest=this.value; tabReports(); };
   if($('#rpmake')) $('#rpmake').onclick=function(){ var b=this; b.disabled=true; b.textContent='Đang tạo…'; api('t_makeReports',T.pin,true).then(function(m){ toast(m); T.rpCache={}; T.rpTest=''; tabReports(); }).catch(function(e){ toast(e.message); b.disabled=false; }); };
-  $('#rplinks').onclick=function(){ copyParentLinks(T.rpCls); };
+  if($('#rplinks')) $('#rplinks').onclick=function(){ copyParentLinks(T.rpCls); };
   if($('#rpall')) $('#rpall').onclick=function(){ copyText(r.rows.map(function(x){ return x.text; }).join('\n\n— — —\n\n')); };
   $$('[data-rp]').forEach(function(b){ b.onclick=function(){ copyText(r.rows[+b.dataset.rp].text); }; });
   $$('[data-rv]').forEach(function(b){ b.onclick=function(){ modal('<pre class="rppre">'+esc(r.rows[+b.dataset.rv].text)+'</pre>',[{label:'📋 Chép',value:'c'},{label:'Đóng',cls:'plain',value:false}]).then(function(v){ if(v==='c') copyText(r.rows[+b.dataset.rv].text); }); }; });
@@ -2164,17 +2164,17 @@ function bindFilter(cb){ $$('.filter button').forEach(function(b){ b.onclick=fun
 function renderTeacher(){
   var lvs=myLevels();
   if((T.tab==='students'||T.tab==='scores') && T.level==='all') T.level=(lvs[0]||BOOT.levels[0]).key;
-  if(T.tab==='teachers' && !isAdmin()) T.tab='hw';
+  if((T.tab==='teachers'||T.tab==='ov'||T.tab==='links') && !isAdmin()) T.tab='hw';
   var me=T.data.me||{name:'',role:'admin'};
   var html=header('<div style="text-align:right"><div class="small" style="font-weight:700">'+esc(isAdmin()?'👑 '+me.name:'👩‍🏫 '+me.name)+'</div><button class="link small" id="out">Thoát</button></div>')+
     (!isAdmin()?'<div class="muted small" style="margin:-8px 0 12px">Lớp của cô: <b>'+esc((me.classes||[]).join(', ')||'chưa được giao lớp')+'</b></div>':'')+
-    '<div class="tabs"><button data-t="ov" class="'+(T.tab==='ov'?'on':'')+'">🏠 Tổng quan</button><button data-t="hw" class="'+(T.tab==='hw'?'on':'')+'">📚 Bài tập</button><button data-t="lp" class="'+(T.tab==='lp'?'on':'')+'">📘 Lesson Plan</button><button data-t="mini" class="'+(T.tab==='mini'?'on':'')+'">📝 Mini test</button><button data-t="students" class="'+(T.tab==='students'?'on':'')+'">👧 Học viên</button><button data-t="scores" class="'+(T.tab==='scores'?'on':'')+'">📊 Bảng điểm</button><button data-t="rep" class="'+(T.tab==='rep'?'on':'')+'">📨 Báo cáo</button>'+
+    '<div class="tabs">'+(isAdmin()?'<button data-t="ov" class="'+(T.tab==='ov'?'on':'')+'">🏠 Tổng quan</button>':'')+'<button data-t="hw" class="'+(T.tab==='hw'?'on':'')+'">📚 Bài tập</button><button data-t="lp" class="'+(T.tab==='lp'?'on':'')+'">📘 Lesson Plan</button><button data-t="mini" class="'+(T.tab==='mini'?'on':'')+'">📝 Mini test</button><button data-t="students" class="'+(T.tab==='students'?'on':'')+'">👧 Học viên</button><button data-t="scores" class="'+(T.tab==='scores'?'on':'')+'">📊 Bảng điểm</button><button data-t="rep" class="'+(T.tab==='rep'?'on':'')+'">🏆 Kiểm tra tháng</button>'+
     (isAdmin()?'<button data-t="teachers" class="'+(T.tab==='teachers'?'on':'')+'">👩‍🏫 Giáo viên</button>':'')+
-    '<button data-t="links" class="'+(T.tab==='links'?'on':'')+'">🔑 Mã lớp & link</button></div>';
+    (isAdmin()?'<button data-t="links" class="'+(T.tab==='links'?'on':'')+'">🔑 Mã lớp & link</button>':'')+'</div>';
   $('#app').innerHTML=html+'<div id="tb"></div>';
   $$('.tabs button').forEach(function(b){ b.onclick=function(){ T.tab=b.dataset.t; renderTeacher(); }; });
   $('#out').onclick=function(){ sstore('hw_pin',null); T.pin=null; BOOT.teacher=false; startStudent(); };
-  if(T.tab==='ov') tabOverview(); else if(T.tab==='rep') tabReports(); else if(T.tab==='hw') tabHomework(); else if(T.tab==='mini') tabMini(); else if(T.tab==='lp') tabLP(); else if(T.tab==='students') tabStudents(); else if(T.tab==='scores') tabScores(); else if(T.tab==='teachers') tabTeachers(); else tabLinks();
+  if(T.tab==='ov') tabOverview(); else if(T.tab==='rep') tabReports(); else if(T.tab==='hw') tabHomework(); else if(T.tab==='mini') tabMini(); else if(T.tab==='lp') tabLP(); else if(T.tab==='students') tabStudents(); else if(T.tab==='scores') tabScores(); else if(T.tab==='teachers') tabTeachers(); else if(isAdmin()) tabLinks(); else tabHomework();
 }
 
 function countStudents(level, classes){ return T.data.students.filter(function(s){ return s.levels.indexOf(level)>=0 && (!classes||!classes.length||classes.indexOf(s.note)>=0); }).length; }
@@ -2911,8 +2911,8 @@ function renderProfile(p){
       '<div><span>Phụ huynh</span><b>'+esc(i.parent||'—')+'</b></div>'+
       (p.admin?'<div><span>SĐT phụ huynh</span><b>'+(i.phone?'<a href="tel:'+esc(i.phone)+'">'+esc(i.phone)+'</a> · <a target="_blank" href="https:\/\/zalo.me/'+esc(i.phone.replace(/\D/g,''))+'">Zalo</a>':'—')+'</b></div>':'')+
       (p.admin&&i.studentPhone?'<div><span>SĐT học viên</span><b>'+esc(i.studentPhone)+'</b></div>':'')+
-      '<div><span>Mã đăng nhập</span><b class="pfcode">'+esc(s.code||'—')+'</b></div></div>'+
-      '<div class="row" style="margin-top:10px"><button class="btn sm soft" id="pfph">👪 Link phụ huynh</button><button class="btn sm soft" id="pfmsg">📋 Tin Zalo gửi mã cho phụ huynh</button><button class="btn sm plain" id="pfcard">🖨 In thẻ</button>'+(p.admin?'<button class="btn sm plain" id="pfreset">🔄 Đổi mã</button>':'')+'</div>'+
+      (p.admin?'<div><span>Mã đăng nhập</span><b class="pfcode">'+esc(s.code||'—')+'</b></div>':'')+'</div>'+
+      (p.admin?'<div class="row" style="margin-top:10px"><button class="btn sm soft" id="pfph">👪 Link phụ huynh</button><button class="btn sm soft" id="pfmsg">📋 Tin Zalo gửi mã cho phụ huynh</button><button class="btn sm plain" id="pfcard">🖨 In thẻ</button><button class="btn sm plain" id="pfreset">🔄 Đổi mã</button></div>':'')+
       (i.syncedAt?'<p class="muted small" style="margin:8px 0 0">Thông tin phụ huynh chép từ Sổ Lớp lúc '+fmtTime(i.syncedAt)+'. Muốn sửa, cô sửa trong Sổ Lớp.</p>':'<p class="muted small" style="margin:8px 0 0">Thông tin phụ huynh sẽ tự chép từ Sổ Lớp sau lần đồng bộ tối nay.</p>')+'</div>'+
     '<div class="stsum">'+box(x.rate===null||x.rate===undefined?'–':x.rate+'%','nộp bài ('+(x.done||0)+'/'+(x.assigned||0)+')',x.rate!==null&&x.rate<60?'bad':'')+box(x.avg===null||x.avg===undefined?'–':fmtScore(x.avg),'điểm TB bài tập')+box(x.mtCount?fmtScore(x.mtAvg):'–','mini test TB ('+(x.mtCount||0)+' bài)')+'</div>'+
     (function(f){ f=f||{streak:0,best:0,learned:0,seen:0,days:[],badges:0};
@@ -2932,9 +2932,11 @@ function renderProfile(p){
       }).join('')+'</div>':'<div class="muted small">Chưa có điểm mini test.</div>')+'</div>'+
     '</div>';
   $('.pfscroll',L).innerHTML=html;
+  if(p.admin){
   $('#pfmsg',L).onclick=function(){ copyText(codeMsg(s.name,s.code)); };
   $('#pfph',L).onclick=function(){ api('t_parentLinks',T.pin,'',s.id).then(function(a){ if(a[0]) copyText(parentMsg(s.name,a[0].link)); }).catch(function(e){ toast(e.message); }); };
   $('#pfcard',L).onclick=function(){ printCards(s.note,[{name:s.name,code:s.code}]); };
+  }
   if($('#pfreset',L)) $('#pfreset',L).onclick=function(){
     modal('<h3>Đổi mã đăng nhập?</h3><p>Mã cũ <b>'+esc(s.code)+'</b> sẽ không dùng được nữa. Điện thoại đã đăng nhập rồi vẫn vào bình thường.</p>',[{label:'Huỷ',cls:'plain',value:false},{label:'Đổi mã',cls:'warn',value:true}]).then(function(ok){
       if(!ok) return; L.innerHTML='<div class="pfv"><div class="pfscroll"><div class="loading"><div><div class="spin"></div>Đang đổi mã…</div></div></div></div>';
