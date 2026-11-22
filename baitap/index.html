@@ -405,6 +405,17 @@ details.card>summary{cursor:pointer;list-style:none}details.card[open]>summary{m
 .fchint{position:absolute;bottom:12px}.fctag{position:absolute;top:-12px;left:50%;transform:translateX(-50%);z-index:2;background:var(--sun,#FFE9A8);padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;white-space:nowrap}
 .fcbtns{display:flex;gap:10px;width:100%;max-width:440px;margin-top:18px}.fcbtns .btn{flex:1}.fcno{background:#FDE3DE!important;color:#C0392B!important}.fcyes{background:#DDF3E6!important;color:#1E7D45!important}
 .fcdone{text-align:center;max-width:460px}.fcdone .confetti{font-size:34px;letter-spacing:6px}.flame.big{font-size:80px}.flame.up{animation:fcpop .8s ease}.fcup{color:var(--accent);font-weight:700}
+/* ---------- Phụ huynh · Báo cáo · Tổng quan (giai đoạn 4) ---------- */
+.phmonth{border:2px solid #F5DFA8;background:linear-gradient(180deg,#FFFBF0,#fff)}.phmonth pre{white-space:pre-wrap;font-family:inherit;font-size:14.5px;line-height:1.55;margin:8px 0 0}.phscore{display:flex;align-items:center;gap:10px;margin:10px 0 4px}.phscore b{font-size:36px;color:var(--accent);line-height:1}.phscore small{font-size:18px;color:var(--muted)}
+.phhead{display:flex;gap:14px;align-items:center}.phline{margin:6px 0}.phline.bad{color:var(--bad)}.phline.ok{color:#1E7D45}
+.phrep{border-top:1px solid var(--line);padding:8px 0}.phrep summary{cursor:pointer}.phrep pre,.rppre{white-space:pre-wrap;font-family:inherit;font-size:14px;background:#FBF7F2;border-radius:10px;padding:10px;margin:8px 0 0}
+.ovk{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.ovk>div{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center;box-shadow:var(--shadow)}
+.ovk b{display:block;font-size:24px;color:var(--brand);line-height:1.15}.ovk span{font-size:12.5px;color:var(--muted)}.ovk .bad b{color:var(--bad)}
+.ovk small,.ovg small.up,.ovg small.down{font-size:12px;margin-left:4px}small.up{color:#1E7D45}small.down{color:var(--bad)}
+@media (max-width:600px){.ovk{grid-template-columns:repeat(2,1fr)}}
+.ovg{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:10px}.ovg>div{background:#FBF7F2;border-radius:10px;padding:8px 10px}.ovg>div>span:first-child{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+.ovatt{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}.ovp{display:flex;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line);cursor:pointer}.ovp span:first-child{font-weight:600}.ovp small{flex:1;color:var(--bad)}
+.rprow{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}.rprow .n{flex:1;min-width:0}.rpbtn{display:flex;gap:6px;flex:none}
 </style>
 </head>
 <body>
@@ -415,7 +426,7 @@ var CENTER_API = 'https:\/\/script.google.com/macros/s/AKfycbw-92fSPWOEAsosZT6ka
 var BOOT = (function(){
   var q = {}; location.search.replace(/^\?/,'').split('&').forEach(function(kv){ if(!kv) return; var p=kv.split('='); q[decodeURIComponent(p[0])]=decodeURIComponent((p[1]||'').replace(/\+/g,' ')); });
   var api = CENTER_API;
-  return { standalone:true, api:api, url:api, pageUrl:location.origin+location.pathname, level:q.lop||'', teacher:q.gv==='1', ma:q.ma||'', center:'IELTS Hannah',
+  return { standalone:true, api:api, url:api, pageUrl:location.origin+location.pathname, level:q.lop||'', teacher:q.gv==='1', ma:q.ma||'', ph:q.ph||'', center:'IELTS Hannah',
     levels:[{key:'superkids',name:'Super Kids',group:'kids'},{key:'happykids',name:'Happy Kids',group:'kids'},{key:'starters',name:'Starters',group:'kids'},{key:'movers',name:'Movers',group:'kids'},{key:'flyers',name:'Flyers',group:'kids'},{key:'xaynen',name:'Xây Nền',group:'teen'},{key:'ielts_l',name:'IELTS Listening',group:'ielts'},{key:'ielts_r',name:'IELTS Reading',group:'ielts'},{key:'ielts_s',name:'IELTS Speaking',group:'ielts'},{key:'ielts_w',name:'IELTS Writing',group:'ielts'}] };
 })();
 </script>
@@ -857,6 +868,98 @@ function fcPlay(cards, box){
   show();
 }
 
+/* ================= Giai đoạn 4: Link phụ huynh · Báo cáo tuần · Tổng quan ================= */
+function allMyClasses(){ var seen={}, out=[]; ((T.data&&T.data.students)||[]).forEach(function(s){ if(s.note && !seen[s.note]){ seen[s.note]=1; out.push(s.note); } }); return out.sort(function(a,b){ return a.localeCompare(b,'vi'); }); }
+function pctChip(v,label){ return v===null||v===undefined?'<span class="chip">'+(label||'')+'–</span>':'<span class="chip '+(v>=80?'ok':v>=60?'sun':'bad')+'">'+(label||'')+v+'%</span>'; }
+
+/* ---------- Trang phụ huynh (chỉ xem) ---------- */
+function startParent(tok){
+  loading('Đang mở trang phụ huynh…');
+  api('api_parent', tok).then(function(p){
+    var b=function(v,l,c){ return '<div class="'+(c||'')+'"><b>'+v+'</b><span>'+l+'</span></div>'; };
+    var f=p.fc||{streak:0,best:0,learned:0,days:[]}, w=p.week;
+    var html=header('')+
+      '<div class="card phhead"><div class="pfav">'+esc((p.name.split(' ').pop()||'?').charAt(0))+'</div><div style="flex:1;min-width:0"><div class="muted small">Trang theo dõi dành cho phụ huynh</div><h2 style="margin:2px 0 4px">'+esc(p.name)+'</h2><span class="chip brand">'+esc(p.cls)+'</span></div></div>'+
+      (p.reports.length?(function(r){ return '<div class="card phmonth"><h3>📊 Báo cáo tháng – '+esc(r.title)+'</h3><div class="muted small" style="margin-top:-6px">Kiểm tra ngày '+fmtD(r.date)+' · số liệu học tập từ '+fmtD(r.from)+'</div>'+
+        (r.total!==null?'<div class="phscore"><b>'+fmtScore(r.total)+(r.max?'<small>/'+fmtScore(r.max)+'</small>':'')+'</b>'+(r.rank?'<span class="chip sun">🏆 '+esc(r.rank)+'</span>':'')+'</div>':'')+
+        '<pre>'+esc(r.text.split('\n').slice(2).filter(function(l){ return l.indexOf('👉')!==0; }).join('\n'))+'</pre></div>'; })(p.reports[0]):'<div class="card muted small">📊 Báo cáo tháng sẽ có ở đây sau buổi kiểm tra tháng của con.</div>')+
+      '<div class="card phweek"><h3>📅 Tuần này ('+esc(w.label)+')</h3>'+
+        (w.assigned?'<div class="phline">📚 Bài tập: <b>'+w.done+'/'+w.assigned+'</b> bài '+pctChip(w.rate)+(w.avg!==null?' · điểm TB <b>'+fmtScore(w.avg)+'</b>/10':'')+'</div>'+(w.missing.length?'<div class="phline bad">❗ Chưa làm: '+w.missing.map(esc).join('; ')+'</div>':'<div class="phline ok">✅ Con làm đủ bài tuần này</div>'):'<div class="phline">📚 Tuần này lớp chưa có bài tập về nhà.</div>')+
+        '<div class="phline">🔥 Học mỗi ngày: <b>'+w.days+'/7</b> ngày · chuỗi hiện tại <b>'+f.streak+'</b> ngày</div>'+fcWeek(f.days)+'</div>'+
+      '<div class="stsum">'+b(p.rate===null?'–':p.rate+'%','nộp bài từ đầu ('+p.done+'/'+p.assigned+')',p.rate!==null&&p.rate<60?'bad':'')+b(p.avg===null?'–':fmtScore(p.avg),'điểm TB bài tập')+b(p.mtCount?fmtScore(p.mtAvg):'–','mini test TB')+'</div>'+
+      '<div class="stsum">'+b('🔥 '+f.streak,'ngày học liền (kỷ lục '+f.best+')')+b(f.learned,'từ vựng đã thuộc')+b((f.days||[]).filter(function(d){ return d>=new Date(Date.now()-29*864e5).toISOString().slice(0,10); }).length,'ngày học / 30 ngày')+'</div>'+
+      (p.notes.length?'<div class="card"><h3>💬 Cô nhận xét</h3>'+p.notes.map(function(n){ return '<div class="pfnote"><div class="muted small">'+fmtTime(n.time)+' · '+esc(n.teacher)+'</div>'+esc(n.text).replace(/\n/g,'<br>')+'</div>'; }).join('')+'</div>':'')+
+      (p.minitests.length?'<div class="card"><h3>📝 Mini test đầu giờ</h3><div class="pftable">'+p.minitests.map(function(m){ return '<div class="pfr"><div class="t">'+esc(mtTitle(m.testId))+'<div class="muted small">'+fmtD(m.date)+'</div>'+(m.comment?'<div class="small">💬 '+esc(m.comment)+'</div>':'')+'</div><div class="v"><span class="chip '+(m.total>=8?'ok':m.total>=5?'sun':'bad')+'">'+(m.total===null?'–':fmtScore(m.total))+'/10</span></div></div>'; }).join('')+'</div></div>':'')+
+      '<div class="card"><h3>📚 Bài tập gần đây</h3>'+(p.recent.length?'<div class="pftable">'+p.recent.map(function(a){ return '<div class="pfr"><div class="t">'+esc(a.title)+'<div class="muted small">Giao '+(a.given?fmtDay(a.given):'—')+'</div>'+(a.comment?'<div class="small">💬 '+esc(a.comment)+'</div>':'')+'</div><div class="v">'+(a.done?(a.score!==null&&a.score!==undefined?'<span class="chip ok">'+fmtScore(a.score)+'/10</span>':'<span class="chip ok">Đã làm</span>'):'<span class="chip bad">Chưa làm</span>')+'</div></div>'; }).join('')+'</div>':'<div class="muted small">Chưa có bài.</div>')+'</div>'+
+      (p.reports.length>1?'<div class="card"><h3>🗂️ Báo cáo các tháng trước</h3>'+p.reports.slice(1).map(function(r){ return '<details class="phrep"><summary><b>'+esc(r.title)+'</b> <span class="muted small">'+fmtD(r.date)+'</span> '+(r.total!==null?'<span class="chip brand">'+fmtScore(r.total)+(r.max?'/'+fmtScore(r.max):'')+'</span>':'')+'</summary><pre>'+esc(r.text)+'</pre></details>'; }).join('')+'</div>':'')+
+      (p.studentLink?'<div class="card" style="text-align:center"><p class="muted small" style="margin-top:0">Con làm bài ở link riêng của con:</p><a class="btn" href="'+esc(p.studentLink)+'">Mở trang làm bài của con →</a></div>':'')+
+      '<p class="muted small" style="text-align:center">Trang này chỉ để xem, cập nhật mỗi khi con làm bài. Có thắc mắc ba mẹ nhắn cô Hannah nhé.</p>';
+    $('#app').innerHTML=html;
+  }).catch(function(e){ $('#app').innerHTML=header('')+'<div class="card err">'+esc(e.message||e)+'</div>'; });
+}
+function parentMsg(name,link){ return '👪 Trang theo dõi việc học của '+name+' – '+BOOT.center+'\nBa mẹ bấm link để xem bài tập, điểm, mini test, chuỗi ngày học và nhận xét của cô (chỉ xem, không cần đăng nhập):\n'+link; }
+function copyParentLinks(cls){
+  api('t_parentLinks',T.pin,cls).then(function(arr){
+    copyText('👪 Link theo dõi việc học – lớp '+cls+'\nMỗi bạn có 1 link riêng để ba mẹ xem bài tập, điểm, chuỗi ngày học và nhận xét của cô (chỉ xem):\n\n'+arr.map(function(s){ return '• '+s.name+':\n  '+s.link; }).join('\n'));
+  }).catch(function(e){ toast(e.message); });
+}
+
+/* ---------- Tab 🏠 Tổng quan ---------- */
+function tabOverview(){
+  var head='<h2 style="margin-top:0">Tổng quan</h2>';
+  if(!T.ov){
+    $('#tb').innerHTML=head+'<div class="loading"><div><div class="spin"></div>Đang tổng hợp các lớp…</div></div>';
+    api('t_overview',T.pin).then(function(d){ T.ov=d; if(T.tab==='ov') tabOverview(); }).catch(function(e){ $('#tb').innerHTML=head+'<div class="card err">'+esc(e.message||e)+'</div>'; });
+    return;
+  }
+  var d=T.ov, t=d.total, trend=function(a,b){ if(a===null||b===null) return ''; var x=a-b; return x?'<small class="'+(x>0?'up':'down')+'">'+(x>0?'▲':'▼')+Math.abs(x)+'</small>':''; };
+  var html=head+'<p class="muted" style="margin-top:-6px">Tuần này '+esc(d.week)+' · so với tuần trước '+esc(d.lastWeek)+'</p>'+
+    '<div class="ovk"><div><b>'+t.n+'</b><span>học viên đang học</span></div><div><b>'+(t.w0===null?'–':t.w0+'%')+' '+trend(t.w0,t.w1)+'</b><span>nộp bài tuần này</span></div><div><b>'+t.active7+'</b><span>học trong 7 ngày qua</span></div><div class="'+(t.attention?'bad':'')+'"><b>'+t.attention+'</b><span>bạn cần chú ý</span></div></div>'+
+    d.classes.map(function(c){
+      return '<div class="card ovc"><div class="row between" style="align-items:flex-start"><div><h3 style="margin:0">'+esc(c.cls)+'</h3><div class="muted small">'+c.n+' học viên · '+c.active7+' bạn học trong 7 ngày · '+c.streak3+' bạn có chuỗi 🔥 ≥ 3</div></div>'+
+        '<button class="btn sm plain" data-ovc="'+esc(c.cls)+'" data-lv="'+esc(c.level)+'">Xem lớp ›</button></div>'+
+        '<div class="ovg"><div><span>Nộp bài tuần này</span>'+(c.w0a?pctChip(c.w0)+trend(c.w0,c.w1):'<span class="chip">chưa giao</span>')+'</div><div><span>Tuần trước</span>'+pctChip(c.w1)+'</div><div><span>Từ đầu</span>'+pctChip(c.all)+'</div>'+
+        '<div><span>Điểm TB bài tập</span><b>'+(c.avg===null?'–':fmtScore(c.avg))+'</b></div><div><span>Mini test TB</span><b>'+(c.mt===null?'–':fmtScore(c.mt))+'</b>'+(c.mt0!==null?' <small class="muted">(tuần này '+fmtScore(c.mt0)+')</small>':'')+'</div></div>'+
+        (c.attention.length?'<div class="ovatt"><b>⚠️ Cần chú ý ('+c.attentionN+')</b>'+c.attention.map(function(a){ return '<div class="ovp" data-pf="'+esc(a.id)+'"><span>'+esc(a.name)+'</span><small>'+esc(a.why)+'</small><span class="muted">›</span></div>'; }).join('')+'</div>':'<div class="muted small" style="margin-top:8px">✅ Không có bạn nào cần chú ý.</div>')+'</div>';
+    }).join('')+
+    '<div class="row" style="margin-top:6px"><button class="btn sm plain" id="ovrf">↻ Tính lại</button><span class="muted small">Cần chú ý = nộp bài dưới 60%, thiếu từ 2 bài trong 2 tuần, hoặc 7 ngày không học (có từ 2 dấu hiệu, hoặc nộp dưới 40%).</span></div>';
+  $('#tb').innerHTML=html;
+  $('#ovrf').onclick=function(){ T.ov=null; tabOverview(); };
+  $$('[data-ovc]').forEach(function(b){ b.onclick=function(){ T.level=b.dataset.lv; T.stCls=b.dataset.ovc; T.stF='all'; T.tab='students'; renderTeacher(); }; });
+  $$('.ovp[data-pf]').forEach(function(r){ r.onclick=function(){ openProfile(r.dataset.pf); }; });
+}
+
+/* ---------- Tab 📨 Báo cáo tháng ---------- */
+function tabReports(){
+  var cls=allMyClasses();
+  if(!T.rpCls || cls.indexOf(T.rpCls)<0) T.rpCls=cls[0]||'';
+  var head='<h2 style="margin-top:0">Báo cáo tháng gửi phụ huynh</h2><p class="muted" style="margin-top:-6px">Tự tạo sau buổi kiểm tra tháng (điểm lấy từ Sổ Lớp, tối hôm đó khoảng 23h). Phụ huynh xem trên link; cô chép dán Zalo nếu muốn.</p>'+
+    '<div class="filter" id="rpcls">'+cls.map(function(c){ return '<button data-c="'+esc(c)+'" class="'+(c===T.rpCls?'on':'')+'">'+esc(c)+'</button>'; }).join('')+'</div>';
+  var bindTop=function(){ $$('#rpcls button').forEach(function(b){ b.onclick=function(){ T.rpCls=b.dataset.c; T.rpTest=''; tabReports(); }; }); };
+  if(!T.rpCls){ $('#tb').innerHTML=head+'<div class="card empty">Chưa có lớp.</div>'; return; }
+  var key=T.rpCls+'|'+(T.rpTest||''), hit=(T.rpCache||{})[key];
+  if(!hit){
+    $('#tb').innerHTML=head+'<div class="loading"><div><div class="spin"></div>Đang tải báo cáo…</div></div>'; bindTop();
+    api('t_reports',T.pin,T.rpCls,T.rpTest||'').then(function(r){ (T.rpCache=T.rpCache||{})[key]=r; if(T.tab==='rep') tabReports(); }).catch(function(e){ $('#tb').innerHTML=head+'<div class="card err">'+esc(e.message||e)+'</div>'; bindTop(); });
+    return;
+  }
+  var r=hit, mk=isAdmin()?'<button class="btn sm soft" id="rpmake">🔄 Cập nhật báo cáo tháng</button>':'';
+  var html=head+'<div class="row" style="margin-bottom:10px">'+(r.tests.length?'<select id="rpw" style="width:auto">'+r.tests.map(function(t){ return '<option value="'+esc(t.id)+'"'+(t.id===r.test?' selected':'')+'>'+esc(t.title)+' ('+fmtD(t.date)+')</option>'; }).join('')+'</select>':'')+mk+
+    '<button class="btn sm plain" id="rplinks">👪 Link phụ huynh cả lớp</button></div>';
+  if(!r.rows.length) html+='<div class="card empty"><div class="e">📨</div>Lớp này chưa có báo cáo tháng. Sau khi cô nhập điểm kiểm tra tháng vào Sổ Lớp, tối hôm đó báo cáo sẽ tự có ở đây'+(isAdmin()?' (hoặc chị bấm <b>"Cập nhật báo cáo tháng"</b> sau 22:17).':'.')+'</div>';
+  else {
+    html+='<div class="card"><div class="row between"><div><b>'+r.rows.length+' báo cáo</b></div><button class="btn sm" id="rpall">📋 Chép cả lớp</button></div>'+
+      r.rows.map(function(x,i){ return '<div class="rprow"><div class="n"><b>'+esc(x.name)+'</b><div class="chips" style="margin-top:4px">'+(x.total!==null?'<span class="chip brand">🏆 '+fmtScore(x.total)+(x.max?'/'+fmtScore(x.max):'')+'</span>':'<span class="chip bad">vắng</span>')+(x.rank?'<span class="chip sun">'+esc(x.rank)+'</span>':'')+(x.rate!==null?pctChip(x.rate,'📚 '):'')+'<span class="chip">🔥 '+x.days+' ngày</span></div></div>'+
+        '<div class="rpbtn"><button class="btn sm soft" data-rp="'+i+'">📋 Chép</button><button class="btn sm plain" data-rv="'+i+'">Xem</button></div></div>'; }).join('')+'</div>';
+  }
+  $('#tb').innerHTML=html; bindTop();
+  if($('#rpw')) $('#rpw').onchange=function(){ T.rpTest=this.value; tabReports(); };
+  if($('#rpmake')) $('#rpmake').onclick=function(){ var b=this; b.disabled=true; b.textContent='Đang tạo…'; api('t_makeReports',T.pin,true).then(function(m){ toast(m); T.rpCache={}; T.rpTest=''; tabReports(); }).catch(function(e){ toast(e.message); b.disabled=false; }); };
+  $('#rplinks').onclick=function(){ copyParentLinks(T.rpCls); };
+  if($('#rpall')) $('#rpall').onclick=function(){ copyText(r.rows.map(function(x){ return x.text; }).join('\n\n— — —\n\n')); };
+  $$('[data-rp]').forEach(function(b){ b.onclick=function(){ copyText(r.rows[+b.dataset.rp].text); }; });
+  $$('[data-rv]').forEach(function(b){ b.onclick=function(){ modal('<pre class="rppre">'+esc(r.rows[+b.dataset.rv].text)+'</pre>',[{label:'📋 Chép',value:'c'},{label:'Đóng',cls:'plain',value:false}]).then(function(v){ if(v==='c') copyText(r.rows[+b.dataset.rv].text); }); }; });
+}
 function startStudent(){
   var ma=BOOT.ma||'';
   if(!ma){ try{ var m=location.search.match(/[?&]ma=([^&]+)/); if(m) ma=decodeURIComponent(m[1]); }catch(e){} }
@@ -1959,13 +2062,13 @@ function renderTeacher(){
   var me=T.data.me||{name:'',role:'admin'};
   var html=header('<div style="text-align:right"><div class="small" style="font-weight:700">'+esc(isAdmin()?'👑 '+me.name:'👩‍🏫 '+me.name)+'</div><button class="link small" id="out">Thoát</button></div>')+
     (!isAdmin()?'<div class="muted small" style="margin:-8px 0 12px">Lớp của cô: <b>'+esc((me.classes||[]).join(', ')||'chưa được giao lớp')+'</b></div>':'')+
-    '<div class="tabs"><button data-t="hw" class="'+(T.tab==='hw'?'on':'')+'">📚 Bài tập</button><button data-t="lp" class="'+(T.tab==='lp'?'on':'')+'">📘 Lesson Plan</button><button data-t="mini" class="'+(T.tab==='mini'?'on':'')+'">📝 Mini test</button><button data-t="students" class="'+(T.tab==='students'?'on':'')+'">👧 Học viên</button><button data-t="scores" class="'+(T.tab==='scores'?'on':'')+'">📊 Bảng điểm</button>'+
+    '<div class="tabs"><button data-t="ov" class="'+(T.tab==='ov'?'on':'')+'">🏠 Tổng quan</button><button data-t="hw" class="'+(T.tab==='hw'?'on':'')+'">📚 Bài tập</button><button data-t="lp" class="'+(T.tab==='lp'?'on':'')+'">📘 Lesson Plan</button><button data-t="mini" class="'+(T.tab==='mini'?'on':'')+'">📝 Mini test</button><button data-t="students" class="'+(T.tab==='students'?'on':'')+'">👧 Học viên</button><button data-t="scores" class="'+(T.tab==='scores'?'on':'')+'">📊 Bảng điểm</button><button data-t="rep" class="'+(T.tab==='rep'?'on':'')+'">📨 Báo cáo</button>'+
     (isAdmin()?'<button data-t="teachers" class="'+(T.tab==='teachers'?'on':'')+'">👩‍🏫 Giáo viên</button>':'')+
     '<button data-t="links" class="'+(T.tab==='links'?'on':'')+'">🔑 Mã lớp & link</button></div>';
   $('#app').innerHTML=html+'<div id="tb"></div>';
   $$('.tabs button').forEach(function(b){ b.onclick=function(){ T.tab=b.dataset.t; renderTeacher(); }; });
   $('#out').onclick=function(){ sstore('hw_pin',null); T.pin=null; BOOT.teacher=false; startStudent(); };
-  if(T.tab==='hw') tabHomework(); else if(T.tab==='mini') tabMini(); else if(T.tab==='lp') tabLP(); else if(T.tab==='students') tabStudents(); else if(T.tab==='scores') tabScores(); else if(T.tab==='teachers') tabTeachers(); else tabLinks();
+  if(T.tab==='ov') tabOverview(); else if(T.tab==='rep') tabReports(); else if(T.tab==='hw') tabHomework(); else if(T.tab==='mini') tabMini(); else if(T.tab==='lp') tabLP(); else if(T.tab==='students') tabStudents(); else if(T.tab==='scores') tabScores(); else if(T.tab==='teachers') tabTeachers(); else tabLinks();
 }
 
 function countStudents(level, classes){ return T.data.students.filter(function(s){ return s.levels.indexOf(level)>=0 && (!classes||!classes.length||classes.indexOf(s.note)>=0); }).length; }
@@ -2701,7 +2804,7 @@ function renderProfile(p){
       (p.admin?'<div><span>SĐT phụ huynh</span><b>'+(i.phone?'<a href="tel:'+esc(i.phone)+'">'+esc(i.phone)+'</a> · <a target="_blank" href="https:\/\/zalo.me/'+esc(i.phone.replace(/\D/g,''))+'">Zalo</a>':'—')+'</b></div>':'')+
       (p.admin&&i.studentPhone?'<div><span>SĐT học viên</span><b>'+esc(i.studentPhone)+'</b></div>':'')+
       '<div><span>Mã đăng nhập</span><b class="pfcode">'+esc(s.code||'—')+'</b></div></div>'+
-      '<div class="row" style="margin-top:10px"><button class="btn sm soft" id="pfmsg">📋 Tin Zalo gửi mã cho phụ huynh</button><button class="btn sm plain" id="pfcard">🖨 In thẻ</button>'+(p.admin?'<button class="btn sm plain" id="pfreset">🔄 Đổi mã</button>':'')+'</div>'+
+      '<div class="row" style="margin-top:10px"><button class="btn sm soft" id="pfph">👪 Link phụ huynh</button><button class="btn sm soft" id="pfmsg">📋 Tin Zalo gửi mã cho phụ huynh</button><button class="btn sm plain" id="pfcard">🖨 In thẻ</button>'+(p.admin?'<button class="btn sm plain" id="pfreset">🔄 Đổi mã</button>':'')+'</div>'+
       (i.syncedAt?'<p class="muted small" style="margin:8px 0 0">Thông tin phụ huynh chép từ Sổ Lớp lúc '+fmtTime(i.syncedAt)+'. Muốn sửa, cô sửa trong Sổ Lớp.</p>':'<p class="muted small" style="margin:8px 0 0">Thông tin phụ huynh sẽ tự chép từ Sổ Lớp sau lần đồng bộ tối nay.</p>')+'</div>'+
     '<div class="stsum">'+box(x.rate===null||x.rate===undefined?'–':x.rate+'%','nộp bài ('+(x.done||0)+'/'+(x.assigned||0)+')',x.rate!==null&&x.rate<60?'bad':'')+box(x.avg===null||x.avg===undefined?'–':fmtScore(x.avg),'điểm TB bài tập')+box(x.mtCount?fmtScore(x.mtAvg):'–','mini test TB ('+(x.mtCount||0)+' bài)')+'</div>'+
     (function(f){ f=f||{streak:0,best:0,learned:0,seen:0,days:[],badges:0};
@@ -2722,6 +2825,7 @@ function renderProfile(p){
     '</div>';
   $('.pfscroll',L).innerHTML=html;
   $('#pfmsg',L).onclick=function(){ copyText(codeMsg(s.name,s.code)); };
+  $('#pfph',L).onclick=function(){ api('t_parentLinks',T.pin,'',s.id).then(function(a){ if(a[0]) copyText(parentMsg(s.name,a[0].link)); }).catch(function(e){ toast(e.message); }); };
   $('#pfcard',L).onclick=function(){ printCards(s.note,[{name:s.name,code:s.code}]); };
   if($('#pfreset',L)) $('#pfreset',L).onclick=function(){
     modal('<h3>Đổi mã đăng nhập?</h3><p>Mã cũ <b>'+esc(s.code)+'</b> sẽ không dùng được nữa. Điện thoại đã đăng nhập rồi vẫn vào bình thường.</p>',[{label:'Huỷ',cls:'plain',value:false},{label:'Đổi mã',cls:'warn',value:true}]).then(function(ok){
@@ -2795,13 +2899,14 @@ function tabLinks(){
         return '<div class="pinrow" data-id="'+esc(c.id)+'"><div class="n">'+esc(c.name)+'<div class="muted small" style="font-weight:500">'+c.students+' học viên'+(c.active?'':' · đang khoá')+'</div></div>'+
           (isAdmin()?'<input type="text" class="cp_pin" inputmode="numeric" maxlength="6" value="'+esc(c.pin)+'"><label class="switch small"><input type="checkbox" class="cp_act"'+(c.active?' checked':'')+'> Mở</label><button class="btn sm cp_save">Lưu</button>'
             :'<span class="chip brand" style="font-size:16px;letter-spacing:2px">'+esc(c.pin)+'</span>')+
-          '<button class="btn sm soft cp_card" data-n="'+esc(c.name)+'">🖨 In thẻ</button><button class="btn sm plain cp_codes" data-n="'+esc(c.name)+'">📋 Mã từng bạn</button><button class="btn sm plain cp_msg" data-n="'+esc(c.name)+'" data-p="'+esc(c.pin)+'">📋 Tin Zalo (mã lớp)</button></div>';
+          '<button class="btn sm soft cp_card" data-n="'+esc(c.name)+'">🖨 In thẻ</button><button class="btn sm plain cp_codes" data-n="'+esc(c.name)+'">📋 Mã từng bạn</button><button class="btn sm plain cp_ph" data-n="'+esc(c.name)+'">👪 Link phụ huynh</button><button class="btn sm plain cp_msg" data-n="'+esc(c.name)+'" data-p="'+esc(c.pin)+'">📋 Tin Zalo (mã lớp)</button></div>';
       }).join(''):'<div class="muted">Chưa có lớp nào. Học viên cần có tên lớp (cột note trong trang HocVien).</div>')+
       (isAdmin()?'<p class="muted small" style="margin-bottom:0">Lớp mới (tên lớp mới trong danh sách học viên) được tự tạo mã khi cô mở trang này. Đổi mã khi cần: học viên cũ đăng nhập rồi vẫn dùng được, bạn mới phải nhập mã mới.</p>':'')+'</div>'+
       '<div class="card"><b>Link trang giáo viên</b><div class="muted small" style="word-break:break-all">'+esc(BOOT.url+'?gv=1')+'</div></div>';
     $('#cpurl').onclick=function(){ copyText(url); };
     $$('.cp_card').forEach(function(b){ b.onclick=function(){ printCards(b.dataset.n); }; });
     $$('.cp_codes').forEach(function(b){ b.onclick=function(){ zaloCodes(b.dataset.n); }; });
+    $$('.cp_ph').forEach(function(b){ b.onclick=function(){ copyParentLinks(b.dataset.n); }; });
     $$('.cp_msg').forEach(function(b){ b.onclick=function(){
       var row=b.closest('.pinrow'), pin=row.querySelector('.cp_pin')?row.querySelector('.cp_pin').value.trim():b.dataset.p;
       copyText('📚 Bài tập về nhà lớp '+b.dataset.n+'\n👉 '+url+'\n🔑 Mã lớp: '+pin+'\nCon mở link, nhập mã lớp và họ tên đầy đủ (có dấu) rồi làm bài nhé. Nên mở bằng Chrome hoặc Safari để ghi âm được ạ.');
@@ -2816,13 +2921,13 @@ function tabLinks(){
 
 /* =================================================================== */
 /* Mở trong Google Apps Script mà đã có trang học viên riêng → chuyển sang trang đó (micro mới dùng được) */
-function goPageUrl(){ return BOOT.pageUrl+(BOOT.pageUrl.indexOf('?')<0?'?':'&')+(BOOT.ma?'ma='+encodeURIComponent(BOOT.ma)+'&':'')+(BOOT.level?'lop='+encodeURIComponent(BOOT.level)+'&':'')+'api='+encodeURIComponent(BOOT.url); }
+function goPageUrl(){ return BOOT.pageUrl+(BOOT.pageUrl.indexOf('?')<0?'?':'&')+(BOOT.ma?'ma='+encodeURIComponent(BOOT.ma)+'&':'')+(BOOT.ph?'ph='+encodeURIComponent(BOOT.ph)+'&':'')+(BOOT.level?'lop='+encodeURIComponent(BOOT.level)+'&':'')+'api='+encodeURIComponent(BOOT.url); }
 function showGoPage(){
   $('#app').innerHTML=header()+'<div class="card" style="text-align:center;padding:28px 18px"><div style="font-size:56px">📚</div><h2>Bài tập về nhà</h2>'+
     '<p class="muted">Con bấm nút dưới đây để mở bài tập nhé.<br><i>Tap the button to start your homework.</i></p>'+
     '<a class="btn lg accent" style="display:inline-block;margin-top:10px;text-decoration:none" target="_top" href="'+esc(goPageUrl())+'">▶ Mở bài tập</a></div>';
 }
-if (BOOT.teacher) startTeacher(); else if (BOOT.pageUrl && !BOOT.standalone) showGoPage(); else startStudent();
+if (BOOT.ph) startParent(BOOT.ph); else if (BOOT.teacher) startTeacher(); else if (BOOT.pageUrl && !BOOT.standalone) showGoPage(); else startStudent();
 /* =================================================================== */
 /* MINI TEST (kiểm tra đầu giờ)                                         */
 /* =================================================================== */
