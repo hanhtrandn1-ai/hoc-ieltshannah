@@ -382,6 +382,29 @@ td.part{background:#FFF3D6;color:#8A5B00}
 .pfnote{border-top:1px solid var(--line);padding:10px 0 2px;margin-top:8px}
 .pftable .pfr{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}.pfr .t{flex:1;min-width:0;font-weight:600}.pfr .t .small{font-weight:400}.pfr .v{text-align:right;flex:none}
 details.card>summary{cursor:pointer;list-style:none}details.card[open]>summary{margin-bottom:8px}
+/* ---------- Thẻ từ + chuỗi ngày (giai đoạn 3) ---------- */
+.fclang{position:absolute;top:14px;right:16px;font-size:12px;color:var(--muted);font-weight:700}
+.fcmini{display:flex;align-items:center;gap:12px;border:2px solid #F8C8A8;background:linear-gradient(90deg,#FFF4EC,#fff)}.fcmini .flame{font-size:36px}.fcmini.done{border-color:#BFE3CC;background:linear-gradient(90deg,#EEF9F2,#fff)}
+@media (max-width:480px){.tabs button{padding:9px 7px;font-size:14px}}
+.fchero{display:flex;align-items:center;gap:14px}.flame{font-size:46px;line-height:1;filter:drop-shadow(0 4px 8px rgba(240,96,77,.35))}.flame.off{filter:grayscale(1);opacity:.45}
+.fchero .sn{font-size:34px;font-weight:800;color:var(--accent);line-height:1}.fchero .sn span{font-size:15px;color:var(--muted);font-weight:600}
+.fcweek{display:flex;gap:6px;margin:-4px 0 14px}.fcday{flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;text-align:center;padding:6px 0}.fcday span{display:block;font-size:18px;color:#C9C2BA}.fcday small{font-size:11px;color:var(--muted)}
+.fcday.on{background:#FFF1E8;border-color:#F8C8A8}.fcday.today{outline:2px solid var(--brand)}
+.fctask .big{font-size:20px;font-weight:800;margin-bottom:4px}.fctask.done{text-align:center}
+.fcbadges{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}.fcbadge{border:1px dashed var(--line);border-radius:12px;padding:8px 6px;text-align:center;opacity:.45;filter:grayscale(1)}
+.fcbadge.got{opacity:1;filter:none;border-style:solid;background:#FFFBF0;border-color:#F5DFA8}.fcbadge .i{font-size:28px}.fcbadge b{display:block;font-size:12.5px;line-height:1.2}.fcbadge small{display:block;font-size:10.5px;color:var(--muted);line-height:1.25;margin-top:2px}
+.fcbadge.pop{animation:fcpop .6s ease}@keyframes fcpop{0%{transform:scale(.3)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+.fcrank{display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line)}.fcrank .n{width:28px;text-align:center;font-weight:800}.fcrank .nm{flex:1;font-weight:600;min-width:0}.fcrank.me{background:var(--brand-soft);border-radius:10px}
+.fcplay .pfbar{gap:10px}.fcprog{flex:1;height:10px;background:#EEE6DD;border-radius:6px;overflow:hidden}.fcprog i{display:block;height:100%;width:0;background:var(--brand);transition:width .3s}
+.fcstage{flex:1;overflow:auto;padding:18px 16px 30px;display:flex;flex-direction:column;align-items:center}
+.fccard{position:relative;width:100%;max-width:440px;height:340px;perspective:1200px;cursor:pointer;margin-top:6px}
+.fcface{position:absolute;inset:0;background:#fff;border-radius:22px;box-shadow:0 10px 30px rgba(31,42,51,.12);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:transform .45s}
+.fcback{transform:rotateY(180deg)}.fccard.flip .fcfront{transform:rotateY(-180deg)}.fccard.flip .fcback{transform:rotateY(0)}
+.fcpic{font-size:72px;line-height:1.1}.fcnum{font-weight:800;color:var(--brand)}.fcdot{display:inline-block;width:90px;height:90px;border-radius:50%;border:3px solid #eee}
+.fcvi{font-size:24px;font-weight:700;text-align:center}.fcvi.small{font-size:16px;color:var(--muted);font-weight:500}.fcq{color:var(--muted)}.fcw{font-size:34px;font-weight:800;color:var(--brand);text-align:center;line-height:1.15}
+.fchint{position:absolute;bottom:12px}.fctag{position:absolute;top:-12px;left:50%;transform:translateX(-50%);z-index:2;background:var(--sun,#FFE9A8);padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;white-space:nowrap}
+.fcbtns{display:flex;gap:10px;width:100%;max-width:440px;margin-top:18px}.fcbtns .btn{flex:1}.fcno{background:#FDE3DE!important;color:#C0392B!important}.fcyes{background:#DDF3E6!important;color:#1E7D45!important}
+.fcdone{text-align:center;max-width:460px}.fcdone .confetti{font-size:34px;letter-spacing:6px}.flame.big{font-size:80px}.flame.up{animation:fcpop .8s ease}.fcup{color:var(--accent);font-weight:700}
 </style>
 </head>
 <body>
@@ -708,6 +731,132 @@ function showError(e, back){
 /* =================================================================== */
 var S = { student:null, home:null, tab:'todo' };
 
+/* ================= Giai đoạn 3: Thẻ từ ôn ngắt quãng + chuỗi ngày 🔥 + huy hiệu ================= */
+var FC_COLORS={red:'#E53935',green:'#43A047',blue:'#1E88E5',yellow:'#FDD835',orange:'#FB8C00',pink:'#F48FB1',purple:'#8E24AA',brown:'#795548',black:'#212121',white:'#FFFFFF',gray:'#9E9E9E',grey:'#9E9E9E'};
+var FC_SHAPES={circle:'⚪',square:'🟥',triangle:'🔺',star:'⭐',heart:'❤️',rectangle:'▬',oval:'🥚',diamond:'🔷'};
+function fcPic(e){
+  e=String(e||''); if(!e) return '';
+  var m=e.match(/^color:(\w+)/); if(m) return '<div class="fcpic"><span class="fcdot" style="background:'+(FC_COLORS[m[1]]||m[1])+'"></span></div>';
+  m=e.match(/^shape:(\w+)/); if(m) return '<div class="fcpic">'+(FC_SHAPES[m[1]]||'🔷')+'</div>';
+  if(/^\d+$/.test(e)) return '<div class="fcpic fcnum">'+esc(e)+'</div>';
+  return '<div class="fcpic">'+esc(e)+'</div>';
+}
+function fcSay(w){ return String(w||'').replace(/^\d+\s*–\s*/,''); }
+function fcWeek(days){
+  var has={}; (days||[]).forEach(function(d){ has[d]=1; });
+  var out='', now=new Date(), names=['CN','T2','T3','T4','T5','T6','T7'];
+  for(var i=6;i>=0;i--){
+    var d=new Date(now.getTime()-i*864e5), k=new Date(d.getTime()+7*3600e3).toISOString().slice(0,10);
+    var dd=new Date(k+'T00:00:00Z');
+    out+='<div class="fcday'+(has[k]?' on':'')+(i===0?' today':'')+'"><span>'+(has[k]?'🔥':'·')+'</span><small>'+(i===0?'Nay':names[dd.getUTCDay()])+'</small></div>';
+  }
+  return '<div class="fcweek">'+out+'</div>';
+}
+function renderFC(box){
+  box.innerHTML='<div class="loading"><div><div class="spin"></div>Đang mở thẻ từ…</div></div>';
+  api('api_fcToday', S.student.id).then(function(d){
+    S.fc=d;
+    var nNew=d.cards.filter(function(c){ return c.isNew; }).length, nOld=d.cards.length-nNew;
+    var task;
+    if(!d.deckSize) task='<div class="card empty"><div class="e">🃏</div>Lớp của con chưa có thẻ từ. Khi cô giao bài theo buổi học, thẻ từ của buổi đó sẽ tự mở ở đây.</div>';
+    else if(d.doneToday && d.extra) task='<div class="card fctask done"><div class="big">✅ Hôm nay con học xong rồi!</div><p class="muted">Giỏi lắm! Mai quay lại để giữ chuỗi 🔥 nhé.</p><button class="btn plain" id="fcgo">Ôn thêm 10 thẻ</button></div>';
+    else task='<div class="card fctask">'+(d.doneToday?'<div class="big">✅ Hôm nay đã tính ngày học</div><p class="muted">Con vẫn còn thẻ đến hạn, ôn tiếp cho nhớ lâu nhé.</p>':'<div class="big">Hôm nay: '+d.cards.length+' thẻ</div><p class="muted">'+(nOld?nOld+' thẻ cần ôn lại':'')+(nOld&&nNew?' · ':'')+(nNew?nNew+' từ mới ✨':'')+(d.extra?'Ôn thêm cho nhớ lâu':'')+' · khoảng '+Math.max(2,Math.round(d.cards.length*0.15))+' phút</p>')+
+      '<button class="btn lg" id="fcgo" style="width:100%">'+(d.doneToday?'Ôn tiếp →':'Bắt đầu ôn →')+'</button></div>';
+    var bd=d.badges.map(function(b){ return '<div class="fcbadge'+(b.got?' got':'')+'" title="'+esc(b.desc)+'"><div class="i">'+b.icon+'</div><b>'+esc(b.name)+'</b><small>'+esc(b.desc)+'</small></div>'; }).join('');
+    var nGot=d.badges.filter(function(b){ return b.got; }).length;
+    var bo=d.board.top.length?'<div class="card"><h3>🏅 Bảng xếp hạng lớp '+esc(S.student.group||'')+'</h3>'+d.board.top.map(function(r){
+        return '<div class="fcrank'+(r.me?' me':'')+'"><span class="n">'+(r.rank<=3?['🥇','🥈','🥉'][r.rank-1]:r.rank)+'</span><span class="nm">'+esc(r.name)+(r.me?' (con)':'')+'</span><span class="chip sun">🔥 '+r.streak+'</span><span class="chip">📚 '+r.learned+'</span></div>'; }).join('')+
+      (d.board.myRank&&d.board.myRank>10?'<p class="muted small" style="margin:8px 0 0">Con đang đứng thứ '+d.board.myRank+'/'+d.board.total+'. Cố lên!</p>':'')+'<p class="muted small" style="margin:8px 0 0">Xếp theo chuỗi ngày học, rồi số từ đã thuộc.</p></div>':'';
+    box.innerHTML='<div class="card fchero"><div class="flame'+(d.streak?'':' off')+'">🔥</div><div style="flex:1"><div class="sn">'+d.streak+' <span>ngày liền</span></div><div class="muted small">Kỷ lục: '+d.best+' ngày · Đã thuộc <b>'+d.learned+'</b>/'+d.deckSize+' từ</div></div></div>'+
+      fcWeek(d.days)+task+
+      '<div class="card"><h3>🎖️ Huy hiệu <span class="muted small">('+nGot+'/'+d.badges.length+')</span></h3><div class="fcbadges">'+bd+'</div></div>'+bo+
+      '<p class="muted small">Ôn từ hằng ngày ở ngay đầu mục <b>Cần làm</b>. Mỗi ngày ôn xong thẻ <b>hoặc</b> nộp 1 bài tập là giữ được chuỗi 🔥. Từ nhớ rồi sẽ lâu lâu mới gặp lại; từ quên sẽ gặp lại ngày mai.</p>';
+    if($('#fcgo')) $('#fcgo').onclick=function(){ fcPlay(d.cards, box); };
+  }).catch(function(e){ box.innerHTML='<div class="card err">'+esc(e.message||e)+'</div>'; });
+}
+function renderFCMini(box){
+  if(!box) return;
+  box.innerHTML='<div class="card fcmini"><div class="flame off">🔥</div><div style="flex:1"><b>Ôn từ hôm nay</b><div class="muted small">Đang tải…</div></div></div>';
+  api('api_fcToday', S.student.id).then(function(d){
+    S.fc=d;
+    if(!d.deckSize){ box.innerHTML=''; return; }
+    var n=d.cards.length, nNew=d.cards.filter(function(c){ return c.isNew; }).length;
+    if(d.doneToday && d.extra){
+      box.innerHTML='<div class="card fcmini done"><div class="flame">🔥</div><div style="flex:1"><b>✅ Hôm nay con đã ôn từ</b><div class="muted small">Chuỗi '+d.streak+' ngày liền · đã thuộc '+d.learned+' từ</div></div><button class="btn sm plain" id="fcm">Ôn thêm</button></div>';
+    } else {
+      box.innerHTML='<div class="card fcmini'+(d.doneToday?' done':'')+'"><div class="flame'+(d.streak?'':' off')+'">🔥</div><div style="flex:1"><b>'+(d.doneToday?'✅ Đã tính ngày học · còn '+n+' thẻ':'🃏 Ôn từ hôm nay: '+n+' thẻ')+'</b><div class="muted small">'+(d.streak?'Chuỗi '+d.streak+' ngày liền':'Bắt đầu chuỗi ngày học nào!')+(nNew?' · '+nNew+' từ mới ✨':'')+' · ~'+Math.max(2,Math.round(n*0.15))+' phút</div></div><button class="btn sm" id="fcm">Ôn ngay →</button></div>';
+    }
+    $('#fcm').onclick=function(){ fcPlay(d.cards, box); };
+  }).catch(function(){ box.innerHTML=''; });
+}
+function fcPlay(cards, box){
+  if(!cards||!cards.length) return;
+  var lv=(S.fc&&S.fc.level)||'', kid=lv==='superkids';
+  var q=cards.filter(function(c){ return !c.isNew; }).sort(function(){ return Math.random()-0.5; });
+  // từ mới chen vào giữa: học trước (xem cả 2 mặt), rồi kiểm tra lại cuối lượt
+  cards.filter(function(c){ return c.isNew; }).forEach(function(c,i){ q.splice(Math.min(q.length, i*3+1),0,{c:c,learn:true}); });
+  q=q.map(function(x){ return x.c?x:{c:x}; });
+  cards.filter(function(c){ return c.isNew; }).forEach(function(c){ q.push({c:c,check:true}); });
+  var first={}, results=[], run=0, maxRun=0, total=q.length, done=0, flipped=false;
+  var L=$('#layer');
+  L.innerHTML='<div class="pfv fcplay"><div class="pfbar"><button class="btn sm plain" id="fcx">✕</button><div class="fcprog"><i id="fcbar"></i></div><b id="fccnt"></b></div><div class="fcstage" id="fcst"></div></div>';
+  var quit=function(){
+    if(!results.length){ L.innerHTML=''; return; }
+    modal('<h3>Dừng ôn?</h3><p>Em lưu '+results.length+' thẻ con đã ôn rồi thoát nhé.</p>',[{label:'Ôn tiếp',cls:'plain',value:false},{label:'Lưu & thoát',value:true}]).then(function(ok){ if(ok) save(); });
+  };
+  $('#fcx').onclick=quit;
+  var record=function(c,ok){
+    var k=c.w.toLowerCase();
+    if(!(k in first)){ first[k]=ok; results.push({w:c.w,ok:ok}); }
+    if(ok){ run++; if(run>maxRun) maxRun=run; } else run=0;
+  };
+  var show=function(){
+    if(!q.length){ save(); return; }
+    var it=q[0], c=it.c; flipped=false;
+    $('#fcbar').style.width=Math.round(done/Math.max(1,total)*100)+'%';
+    $('#fccnt').textContent=(done+1)+'/'+total;
+    // Mặt trước: hình + tiếng Việt · Mặt sau: hình + tiếng Anh
+    var front=fcPic(c.e)+(c.vi?'<div class="fcvi">'+esc(c.vi)+'</div>':'')+'<div class="fclang">🇻🇳 Tiếng Việt</div>';
+    var back=fcPic(c.e)+'<div class="fcw">'+esc(c.w)+'</div><button class="btn sm soft" id="fcsp">🔊 Nghe lại</button><div class="fclang">🇬🇧 Tiếng Anh</div>';
+    $('#fcst').innerHTML='<div class="fccard'+(flipped?' flip':'')+'" id="fccard">'+(it.learn?'<span class="fctag">✨ Từ mới – đọc theo nhé</span>':it.check?'<span class="fctag">🔁 Kiểm tra từ mới</span>':'')+
+      '<div class="fcface fcfront">'+front+'<div class="muted small fchint">Chạm để lật thẻ</div></div><div class="fcface fcback">'+back+'<div class="muted small fchint">Chạm để xem lại mặt tiếng Việt</div></div></div>'+
+      '<div class="fcbtns" id="fcbtns">'+(it.learn?'<button class="btn lg" id="fcnext" style="flex:1">Con đọc theo rồi ✓</button>':'<button class="btn lg plain" id="fcflip" style="flex:1">Lật thẻ</button>')+'</div>';
+    var answered=false;
+    var toggle=function(){ // lật qua lại 2 mặt
+      var el=$('#fccard'); if(!el) return;
+      var on=!el.classList.contains('flip'); el.classList.toggle('flip',on); if(on) speak(fcSay(c.w));
+    };
+    var flip=function(){
+      if(flipped){ toggle(); return; } flipped=true;
+      $('#fccard').classList.add('flip'); speak(fcSay(c.w));
+      if(it.learn) return;
+      $('#fcbtns').innerHTML='<button class="btn lg fcno" id="fcno">😕 Chưa nhớ</button><button class="btn lg fcyes" id="fcyes">😊 Nhớ rồi</button>';
+      $('#fcno').onclick=function(){ record(c,false); q.shift(); q.push({c:c,again:true}); total++; done++; show(); };
+      $('#fcyes').onclick=function(){ record(c,true); q.shift(); done++; show(); };
+    };
+    $('#fccard').onclick=flip;
+    if(it.learn){ var cur=c; setTimeout(function(){ if(q[0]&&q[0].c===cur&&!flipped) flip(); },1400); $('#fcnext').onclick=function(){ q.shift(); done++; show(); }; }
+    else $('#fcflip').onclick=flip;
+    $('#fcsp').onclick=function(ev){ ev.stopPropagation(); speak(fcSay(c.w)); };
+  };
+  var save=function(){
+    $('#fcst').innerHTML='<div class="loading"><div><div class="spin"></div>Đang lưu kết quả…</div></div>'; $('#fcbtns')&&($('#fcbtns').innerHTML='');
+    api('api_fcSave', S.student.id, results, maxRun).then(function(r){
+      var nb=(r.newBadges||[]).map(function(b){ return '<div class="fcbadge got pop"><div class="i">'+b.icon+'</div><b>'+esc(b.name)+'</b><small>'+esc(b.desc)+'</small></div>'; }).join('');
+      $('#fcst').innerHTML='<div class="fcdone"><div class="confetti">🎉✨🎊</div><div class="flame big'+(r.up?' up':'')+'">🔥</div><h2>'+r.streak+' ngày liền!</h2>'+
+        '<p>Con nhớ <b>'+r.ok+'/'+r.total+'</b> thẻ ngay lần đầu · đã thuộc <b>'+r.learned+'</b> từ</p>'+(r.up?'<p class="fcup">Chuỗi ngày học tăng lên rồi! Mai nhớ quay lại nhé 💪</p>':'')+
+        (nb?'<h3>🎖️ Huy hiệu mới!</h3><div class="fcbadges">'+nb+'</div>':'')+
+        '<button class="btn lg" id="fcok" style="margin-top:16px;min-width:200px">Xong</button></div>';
+      $('#fcbar').style.width='100%';
+      $('#fcok').onclick=function(){ L.innerHTML=''; if(box&&document.body.contains(box)) (box.id==='fcmini'?renderFCMini(box):renderFC(box)); };
+    }).catch(function(e){
+      $('#fcst').innerHTML='<div class="card err" style="margin:20px">'+esc(e.message||e)+'<br><button class="btn" id="fcre" style="margin-top:10px">Thử lưu lại</button></div>';
+      $('#fcre').onclick=save;
+    });
+  };
+  show();
+}
+
 function startStudent(){
   var ma=BOOT.ma||'';
   if(!ma){ try{ var m=location.search.match(/[?&]ma=([^&]+)/); if(m) ma=decodeURIComponent(m[1]); }catch(e){} }
@@ -759,7 +908,9 @@ function renderProgress(box){
   box.innerHTML='<div class="loading"><div><div class="spin"></div>Đang tải tiến độ…</div></div>';
   api('api_myProgress', S.student.id).then(function(p){
     var b=function(v,l,c){ return '<div class="'+(c||'')+'"><b>'+v+'</b><span>'+l+'</span></div>'; };
+    var f=p.fc||{streak:0,best:0,learned:0};
     box.innerHTML='<div class="stsum">'+b(p.rate===null?'–':p.rate+'%','bài đã làm ('+p.done+'/'+p.assigned+')',p.rate!==null&&p.rate<60?'bad':'')+b(p.avg===null?'–':fmtScore(p.avg),'điểm TB bài tập')+b(p.mtCount?fmtScore(p.mtAvg):'–','mini test TB')+'</div>'+
+      '<div class="stsum">'+b('🔥 '+f.streak,'ngày học liền (kỷ lục '+f.best+')')+b(f.learned,'từ đã thuộc')+b(f.days?f.days.filter(function(d){ return d>=new Date(Date.now()-29*864e5).toISOString().slice(0,10); }).length:0,'ngày học / 30 ngày')+'</div>'+
       (p.notes.length?'<div class="card"><h3>💬 Cô nhận xét</h3>'+p.notes.map(function(n){ return '<div class="pfnote"><div class="muted small">'+fmtTime(n.time)+' · '+esc(n.teacher)+'</div>'+esc(n.text).replace(/\n/g,'<br>')+'</div>'; }).join('')+'</div>':'')+
       (p.minitests.length?'<div class="card"><h3>📝 Mini test đầu giờ</h3><div class="pftable">'+p.minitests.map(function(m){ return '<div class="pfr"><div class="t">'+esc(mtTitle(m.testId))+'<div class="muted small">'+fmtD(m.date)+'</div>'+(m.comment?'<div class="small">💬 '+esc(m.comment)+'</div>':'')+'</div><div class="v"><span class="chip '+(m.total>=8?'ok':m.total>=5?'sun':'bad')+'">'+(m.total===null?'–':fmtScore(m.total))+'/10</span></div></div>'; }).join('')+'</div></div>':'')+
       '<div class="card"><h3>📚 Bài tập gần đây</h3>'+(p.recent.length?'<div class="pftable">'+p.recent.map(function(a){ return '<div class="pfr"><div class="t">'+esc(a.title)+'<div class="muted small">Giao '+(a.given?fmtDay(a.given):'—')+'</div>'+(a.comment?'<div class="small">💬 '+esc(a.comment)+'</div>':'')+'</div><div class="v">'+(a.done?(a.score!==null&&a.score!==undefined?'<span class="chip ok">'+fmtScore(a.score)+'/10</span>':'<span class="chip ok">Đã làm</span>'):'<span class="chip bad">Chưa làm</span>')+'</div></div>'; }).join('')+'</div>':'<div class="muted small">Chưa có bài.</div>')+'</div>';
@@ -827,9 +978,12 @@ function renderHome(){
   var list = S.tab==='todo'?todo:done;
   $('#app').innerHTML = header('<button class="link small" id="sw">Đăng xuất</button>')+
     '<h2>Chào '+esc(st.name)+'! 👋</h2><p class="lead">'+esc(lv.name)+' · '+(todo.length?('Con còn <b>'+todo.length+'</b> bài cần làm'):'Con đã làm hết bài rồi, giỏi quá!')+'</p>'+
-    '<div class="tabs"><button data-t="todo" class="'+(S.tab==='todo'?'on':'')+'">Cần làm ('+todo.length+')</button><button data-t="done" class="'+(S.tab==='done'?'on':'')+'">Đã nộp ('+done.length+')</button><button data-t="prog" class="'+(S.tab==='prog'?'on':'')+'">📈 Tiến độ</button></div>'+
-    (S.tab==='prog' ? '<div id="progbox"></div>' : list.length? list.map(hwCard).join('') : '<div class="card empty"><div class="e">'+(S.tab==='todo'?'🎉':'📭')+'</div>'+(S.tab==='todo'?'Không còn bài nào cần làm.':'Chưa nộp bài nào.')+'</div>');
+    '<div class="tabs"><button data-t="todo" class="'+(S.tab==='todo'?'on':'')+'">Cần làm ('+todo.length+')</button><button data-t="done" class="'+(S.tab==='done'?'on':'')+'">Đã nộp ('+done.length+')</button><button data-t="fc" class="'+(S.tab==='fc'?'on':'')+'">🏅 Thành tích</button><button data-t="prog" class="'+(S.tab==='prog'?'on':'')+'">📈 Tiến độ</button></div>'+
+    (S.tab==='todo' ? '<div id="fcmini"></div>' : '')+
+    (S.tab==='fc' ? '<div id="fcbox"></div>' : S.tab==='prog' ? '<div id="progbox"></div>' : list.length? list.map(hwCard).join('') : '<div class="card empty"><div class="e">'+(S.tab==='todo'?'🎉':'📭')+'</div>'+(S.tab==='todo'?'Không còn bài nào cần làm.':'Chưa nộp bài nào.')+'</div>');
   if(S.tab==='prog') renderProgress($('#progbox'));
+  if(S.tab==='fc') renderFC($('#fcbox'));
+  if(S.tab==='todo') renderFCMini($('#fcmini'));
   $$('.tabs button').forEach(function(b){ b.onclick=function(){ S.tab=b.dataset.t; renderHome(); }; });
   $('#sw').onclick=function(){ store('hw_student',null); loginCode(); };
   $$('[data-open]').forEach(function(b){ b.onclick=function(){ openAssignment(b.dataset.open); }; });
@@ -2481,15 +2635,16 @@ function tabStudents(){
   var list=all.filter(function(s){
     if(T.stF==='weak' && !(s.active && s.stats && s.stats.rate!==null && s.stats.rate<60)) return false;
     if(T.stF==='off' && s.active) return false;
-    if(T.stF==='all' && !s.active) return false;
+    if((T.stF==='all'||T.stF==='fire') && !s.active) return false;
     return !q || plainVi(s.name).indexOf(q)>=0;
   });
+  if(T.stF==='fire') list.sort(function(a,b){ var fa=a.fc||{}, fb=b.fc||{}; return (fb.streak||0)-(fa.streak||0) || (fb.learned||0)-(fa.learned||0); });
   var avgRate=function(arr){ var n=0,t=0; arr.forEach(function(s){ if(s.stats&&s.stats.rate!==null){ n++; t+=s.stats.rate; } }); return n?Math.round(t/n):null; };
   var cr=avgRate(act);
   $('#tb').innerHTML=head+
     '<div class="stsum"><div><b>'+act.length+'</b><span>đang học</span></div><div><b>'+(cr===null?'–':cr+'%')+'</b><span>nộp bài TB</span></div><div class="'+(weak.length?'bad':'')+'"><b>'+weak.length+'</b><span>nộp dưới 60%</span></div></div>'+
     '<div class="card"><div class="row" style="margin-bottom:6px"><input type="search" id="stq" placeholder="🔎 Tìm tên học viên…" value="'+esc(T.stQ)+'" style="flex:1;min-width:160px">'+
-    '<select id="stf" style="width:auto"><option value="all"'+(T.stF==='all'?' selected':'')+'>Đang học</option><option value="weak"'+(T.stF==='weak'?' selected':'')+'>Nộp bài dưới 60%</option>'+(isAdmin()?'<option value="off"'+(T.stF==='off'?' selected':'')+'>Đã nghỉ / bảo lưu</option>':'')+'</select>'+
+    '<select id="stf" style="width:auto"><option value="all"'+(T.stF==='all'?' selected':'')+'>Đang học</option><option value="weak"'+(T.stF==='weak'?' selected':'')+'>Nộp bài dưới 60%</option><option value="fire"'+(T.stF==='fire'?' selected':'')+'>🔥 Xếp theo chuỗi ngày học</option>'+(isAdmin()?'<option value="off"'+(T.stF==='off'?' selected':'')+'>Đã nghỉ / bảo lưu</option>':'')+'</select>'+
     '<button class="btn sm plain" id="strf" title="Tính lại">↻</button></div>'+
     (list.length?list.map(stRow).join(''):'<div class="muted" style="padding:10px 4px">Không có học viên phù hợp.</div>')+
     '<p class="muted small" style="margin:10px 0 0">Bấm vào tên để mở hồ sơ. Tỉ lệ nộp bài tính các bài đã giao từ 1 ngày trước. Điểm TB: trung bình điểm các bài đã làm (thang 10).</p></div>'+
@@ -2507,7 +2662,7 @@ function stRow(s){
   var x=s.stats||{};
   return '<div class="st-row" data-pf="'+esc(s.id)+'"><div class="n">'+esc(s.name)+
     '<div class="muted small">'+(s.active?'':'<b style="color:var(--bad)">'+esc(s.status||'Đã nghỉ')+'</b> · ')+(x.last?'Làm bài gần nhất '+fmtDay(x.last):(s.active?'Chưa làm bài nào':''))+'</div></div>'+
-    '<div class="chips" style="justify-content:flex-end">'+(s.active?rateChip(x.rate)+(x.avg!==null&&x.avg!==undefined?'<span class="chip brand">⭐ '+fmtScore(x.avg)+'</span>':'')+(x.mtCount?'<span class="chip">📝 MT '+fmtScore(x.mtAvg)+'/10</span>':''):'')+'</div><span class="muted">›</span></div>';
+    '<div class="chips" style="justify-content:flex-end">'+(s.active?rateChip(x.rate)+(x.avg!==null&&x.avg!==undefined?'<span class="chip brand">⭐ '+fmtScore(x.avg)+'</span>':'')+(x.mtCount?'<span class="chip">📝 MT '+fmtScore(x.mtAvg)+'/10</span>':'')+(s.fc&&s.fc.streak?'<span class="chip sun">🔥 '+s.fc.streak+'</span>':'')+(s.fc&&s.fc.learned?'<span class="chip">🃏 '+s.fc.learned+' từ</span>':''):'')+'</div><span class="muted">›</span></div>';
 }
 function stAddForm(lv){
   if(!isAdmin()) return '<p class="muted small">Danh sách học viên được đồng bộ tự động từ Sổ Lớp mỗi tối. Cần thêm hoặc chuyển lớp, cô báo cô Hannah nhé.</p>';
@@ -2549,6 +2704,9 @@ function renderProfile(p){
       '<div class="row" style="margin-top:10px"><button class="btn sm soft" id="pfmsg">📋 Tin Zalo gửi mã cho phụ huynh</button><button class="btn sm plain" id="pfcard">🖨 In thẻ</button>'+(p.admin?'<button class="btn sm plain" id="pfreset">🔄 Đổi mã</button>':'')+'</div>'+
       (i.syncedAt?'<p class="muted small" style="margin:8px 0 0">Thông tin phụ huynh chép từ Sổ Lớp lúc '+fmtTime(i.syncedAt)+'. Muốn sửa, cô sửa trong Sổ Lớp.</p>':'<p class="muted small" style="margin:8px 0 0">Thông tin phụ huynh sẽ tự chép từ Sổ Lớp sau lần đồng bộ tối nay.</p>')+'</div>'+
     '<div class="stsum">'+box(x.rate===null||x.rate===undefined?'–':x.rate+'%','nộp bài ('+(x.done||0)+'/'+(x.assigned||0)+')',x.rate!==null&&x.rate<60?'bad':'')+box(x.avg===null||x.avg===undefined?'–':fmtScore(x.avg),'điểm TB bài tập')+box(x.mtCount?fmtScore(x.mtAvg):'–','mini test TB ('+(x.mtCount||0)+' bài)')+'</div>'+
+    (function(f){ f=f||{streak:0,best:0,learned:0,seen:0,days:[],badges:0};
+      return '<div class="card"><h3>🔥 Học mỗi ngày (thẻ từ + bài tập)</h3><div class="pfinfo"><div><span>Chuỗi hiện tại</span><b>🔥 '+f.streak+' ngày</b></div><div><span>Kỷ lục</span><b>'+f.best+' ngày</b></div><div><span>Từ đã thuộc / đã gặp</span><b>'+f.learned+' / '+f.seen+'</b></div><div><span>Huy hiệu</span><b>🎖️ '+f.badges+'</b></div></div>'+
+        fcWeek(f.days)+(f.last?'<p class="muted small" style="margin:0">Ngày học gần nhất: '+fmtD(f.last)+'</p>':'<p class="muted small" style="margin:0">Chưa ôn thẻ từ / nộp bài lần nào kể từ khi có tính năng này.</p>')+'</div>'; })(p.fc)+
     '<div class="card"><h3>💬 Nhận xét của giáo viên</h3>'+
       '<textarea id="nxt" placeholder="VD: Con tiến bộ phát âm, cần luyện thêm câu hỏi Wh-…" style="min-height:70px"></textarea>'+
       '<div class="row between" style="margin-top:8px"><label class="switch small"><input type="checkbox" id="nxs" checked> Phụ huynh xem được (mục Tiến độ)</label><button class="btn sm" id="nxsave">Lưu nhận xét</button></div>'+
