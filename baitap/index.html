@@ -2164,17 +2164,18 @@ function bindFilter(cb){ $$('.filter button').forEach(function(b){ b.onclick=fun
 function renderTeacher(){
   var lvs=myLevels();
   if((T.tab==='students'||T.tab==='scores') && T.level==='all') T.level=(lvs[0]||BOOT.levels[0]).key;
-  if((T.tab==='teachers'||T.tab==='ov'||T.tab==='links') && !isAdmin()) T.tab='hw';
+  if((T.tab==='teachers'||T.tab==='ov'||T.tab==='links'||T.tab==='solop') && !isAdmin()) T.tab='hw';
   var me=T.data.me||{name:'',role:'admin'};
   var html=header('<div style="text-align:right"><div class="small" style="font-weight:700">'+esc(isAdmin()?'👑 '+me.name:'👩‍🏫 '+me.name)+'</div><button class="link small" id="out">Thoát</button></div>')+
     (!isAdmin()?'<div class="muted small" style="margin:-8px 0 12px">Lớp của cô: <b>'+esc((me.classes||[]).join(', ')||'chưa được giao lớp')+'</b></div>':'')+
     '<div class="tabs">'+(isAdmin()?'<button data-t="ov" class="'+(T.tab==='ov'?'on':'')+'">🏠 Tổng quan</button>':'')+'<button data-t="hw" class="'+(T.tab==='hw'?'on':'')+'">📚 Bài tập</button><button data-t="lp" class="'+(T.tab==='lp'?'on':'')+'">📘 Lesson Plan</button><button data-t="mini" class="'+(T.tab==='mini'?'on':'')+'">📝 Mini test</button><button data-t="students" class="'+(T.tab==='students'?'on':'')+'">👧 Học viên</button><button data-t="scores" class="'+(T.tab==='scores'?'on':'')+'">📊 Bảng điểm</button><button data-t="rep" class="'+(T.tab==='rep'?'on':'')+'">🏆 Kiểm tra tháng</button>'+
+    (isAdmin()?'<button data-t="solop" class="'+(T.tab==='solop'?'on':'')+'">📒 Sổ Lớp</button>':'')+
     (isAdmin()?'<button data-t="teachers" class="'+(T.tab==='teachers'?'on':'')+'">👩‍🏫 Giáo viên</button>':'')+
     (isAdmin()?'<button data-t="links" class="'+(T.tab==='links'?'on':'')+'">🔑 Mã lớp & link</button>':'')+'</div>';
   $('#app').innerHTML=html+'<div id="tb"></div>';
-  $$('.tabs button').forEach(function(b){ b.onclick=function(){ T.tab=b.dataset.t; renderTeacher(); }; });
+  $('.tabs button').forEach(function(b){ b.onclick=function(){ T.tab=b.dataset.t; renderTeacher(); }; });
   $('#out').onclick=function(){ sstore('hw_pin',null); T.pin=null; BOOT.teacher=false; startStudent(); };
-  if(T.tab==='ov') tabOverview(); else if(T.tab==='rep') tabReports(); else if(T.tab==='hw') tabHomework(); else if(T.tab==='mini') tabMini(); else if(T.tab==='lp') tabLP(); else if(T.tab==='students') tabStudents(); else if(T.tab==='scores') tabScores(); else if(T.tab==='teachers') tabTeachers(); else if(isAdmin()) tabLinks(); else tabHomework();
+  if(T.tab==='ov') tabOverview(); else if(T.tab==='rep') tabReports(); else if(T.tab==='hw') tabHomework(); else if(T.tab==='mini') tabMini(); else if(T.tab==='lp') tabLP(); else if(T.tab==='students') tabStudents(); else if(T.tab==='scores') tabScores(); else if(T.tab==='solop'&&isAdmin()) tabSoLop(); else if(T.tab==='teachers') tabTeachers(); else if(isAdmin()) tabLinks(); else tabHomework();
 }
 
 function countStudents(level, classes){ return T.data.students.filter(function(s){ return s.levels.indexOf(level)>=0 && (!classes||!classes.length||classes.indexOf(s.note)>=0); }).length; }
@@ -3393,6 +3394,266 @@ function lpOpen(lv, m, s){
   load();
 }
 
+
+/* ===== Tab 📒 Sổ Lớp (chỉ Quản lý / Cô Hannah) ===== */
+var SL = { loaded:false, loading:false, classes:[], students:[], view:'classes', branch:'all', cls:'all', status:'active', q:'' };
+function slTodayVN(){
+  var d=new Date(), dd=('0'+d.getDate()).slice(-2), mm=('0'+(d.getMonth()+1)).slice(-2), yy=d.getFullYear();
+  return dd+'/'+mm+'/'+yy;
+}
+function slFmtMoney(v){
+  var n=Number(String(v||'').replace(/[^\d]/g,''));
+  return n ? n.toLocaleString('vi-VN')+'đ' : (v||'–');
+}
+function slIsLeft(st){
+  var s=String((st&&st.status)||'').toLowerCase();
+  return s.indexOf('nghỉ')>=0 || s.indexOf('thôi')>=0;
+}
+function slIsTrial(st){
+  var s=String((st&&st.status)||'').toLowerCase();
+  var n=String((st&&st.note)||'').toLowerCase();
+  return s.indexOf('thử')>=0 || (s.indexOf('đang')>=0 && n.indexOf('học thử')>=0 && n.indexOf('hv mới')>=0);
+}
+function tabSoLop(force){
+  if(!isAdmin()) return;
+  if(!SL.loaded || force){
+    if(SL.loading) return;
+    SL.loading=true;
+    $('#tb').innerHTML='<div class="card"><div class="loading"><div><div class="spin"></div>Đang tải dữ liệu Sổ Lớp…</div></div></div>';
+    api('t_solopLoad',T.pin).then(function(d){
+      SL.classes=d.classes||[]; SL.students=d.students||[]; SL.loaded=true; SL.loading=false;
+      renderSoLop();
+    }).catch(function(e){
+      SL.loading=false;
+      $('#tb').innerHTML='<div class="card empty">Không tải được Sổ Lớp: '+esc(e.message||String(e))+'<br><br><button class="btn sm" id="slRetry">Thử lại</button></div>';
+      $('#slRetry').onclick=function(){ tabSoLop(true); };
+    });
+    return;
+  }
+  renderSoLop();
+}
+function renderSoLop(){
+  var sts=SL.students||[], clss=SL.classes||[];
+  var activeN=0, trialN=0, leftN=0;
+  var countByCls={};
+  sts.forEach(function(s){
+    if(slIsLeft(s)) leftN++;
+    else {
+      activeN++;
+      if(slIsTrial(s)) trialN++;
+      if(s.className) countByCls[s.className]=(countByCls[s.className]||0)+1;
+    }
+  });
+  var branches=[], bSeen={};
+  clss.forEach(function(c){ if(c.branch && !bSeen[c.branch]){ bSeen[c.branch]=1; branches.push(c.branch); } });
+
+  var html='<div class="row between" style="margin-bottom:12px;flex-wrap:wrap;gap:8px">'+
+    '<div><h2 style="margin:0">📒 Sổ Lớp IELTS Hannah</h2><div class="muted small">Chỉ hiển thị với tài khoản Quản lý · Đồng bộ trực tiếp với Google Sheets & Antigravity</div></div>'+
+    '<div class="row" style="flex-wrap:wrap;gap:6px">'+
+      '<button class="btn sm" id="slAddSt">+ Thêm học viên</button>'+
+      '<button class="btn sm accent" id="slAddCls">+ Thêm lớp</button>'+
+      '<button class="btn sm soft" id="slCsv">📥 Xuất CSV</button>'+
+      '<button class="btn sm plain" id="slReload">🔄 Tải lại</button>'+
+    '</div></div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">'+
+      '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--brand)">'+clss.length+'</div><div class="muted small">Lớp học</div></div>'+
+      '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:#15803d">'+activeN+'</div><div class="muted small">Đang học</div></div>'+
+      '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:#b45309">'+trialN+'</div><div class="muted small">Học thử mới</div></div>'+
+      '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:#64748b">'+leftN+'</div><div class="muted small">Đã nghỉ</div></div>'+
+    '</div>'+
+    '<div class="filter" style="margin-bottom:12px">'+
+      '<button id="slVCls" class="'+(SL.view==='classes'?'on':'')+'">🏫 Danh sách Lớp ('+clss.length+')</button>'+
+      '<button id="slVSt" class="'+(SL.view==='students'?'on':'')+'">👧 Danh sách Học viên ('+sts.length+')</button>'+
+    '</div>';
+
+  if(SL.view==='classes'){
+    html+='<div class="filter" style="margin-bottom:12px"><button data-slb="all" class="'+(SL.branch==='all'?'on':'')+'">Tất cả cơ sở</button>'+
+      branches.map(function(b){ return '<button data-slb="'+esc(b)+'" class="'+(SL.branch===b?'on':'')+'">'+esc(b)+'</button>'; }).join('')+'</div>';
+    var fCls=clss.filter(function(c){ return SL.branch==='all'||c.branch===SL.branch; });
+    html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">';
+    fCls.forEach(function(c){
+      var realCount=countByCls[c.name]||0;
+      html+='<div class="card" style="margin:0;display:flex;flex-direction:column;justify-content:space-between">'+
+        '<div>'+
+          '<div class="row between" style="align-items:flex-start;gap:8px">'+
+            '<div><div style="font-weight:800;font-size:16px">'+esc(c.name)+'</div><div class="muted small">'+esc(c.branch||'')+(c.schedule?' · '+esc(c.schedule):'')+'</div></div>'+
+            '<span class="chip brand" style="white-space:nowrap">'+realCount+' HV</span>'+
+          '</div>'+
+          '<div class="chips" style="margin:8px 0">'+
+            (c.currentMonth?'<span class="chip">Tháng '+esc(c.currentMonth)+'</span>':'')+
+            (c.examDate?'<span class="chip ok">KT: '+esc(c.examDate)+'</span>':'')+
+            (c.teacher?'<span class="chip">GV: '+esc(c.teacher)+'</span>':'')+
+            (c.ta?'<span class="chip">TA: '+esc(c.ta)+'</span>':'')+
+            (c.bookFee?'<span class="chip">HP: '+esc(c.bookFee)+'</span>':(c.monthlyFee?'<span class="chip">HP: '+slFmtMoney(c.monthlyFee)+'</span>':''))+
+          '</div>'+
+          (c.timeNote?'<div class="muted small" style="margin-bottom:4px">🕒 '+esc(c.timeNote)+'</div>':'')+
+          (c.note?'<div class="small" style="color:#475569;background:#f8fafc;padding:6px 8px;border-radius:8px;margin-top:6px">'+esc(c.note)+'</div>':'')+
+        '</div>'+
+        '<div class="row" style="margin-top:12px;gap:6px">'+
+          '<button class="btn sm" data-slview="'+esc(c.name)+'">👧 Xem học viên</button>'+
+          '<button class="btn sm soft" data-sledc="'+esc(c.id)+'">✏️ Sửa lớp</button>'+
+        '</div>'+
+      '</div>';
+    });
+    html+='</div>';
+  } else {
+    var q=SL.q.toLowerCase().trim();
+    var fSt=sts.filter(function(s){
+      if(SL.cls!=='all' && s.className!==SL.cls) return false;
+      if(SL.status==='active' && slIsLeft(s)) return false;
+      if(SL.status==='trial' && !slIsTrial(s)) return false;
+      if(SL.status==='left' && !slIsLeft(s)) return false;
+      if(SL.status==='hold' && String(s.status||'').toLowerCase().indexOf('bảo lưu')<0) return false;
+      if(q){
+        var hay=[s.name,s.phone,s.otherPhone,s.parentName,s.className,s.note].join(' ').toLowerCase();
+        if(hay.indexOf(q)<0) return false;
+      }
+      return true;
+    });
+    html+='<div class="card" style="padding:12px;margin-bottom:12px"><div class="row" style="flex-wrap:wrap;gap:8px">'+
+      '<input type="text" id="slQ" value="'+esc(SL.q)+'" placeholder="🔍 Tìm tên bé, SĐT, phụ huynh…" style="flex:1;min-width:200px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px">'+
+      '<select id="slClsF" style="padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;max-width:220px"><option value="all">Tất cả lớp ('+clss.length+')</option>'+
+        clss.map(function(c){ return '<option value="'+esc(c.name)+'"'+(SL.cls===c.name?' selected':'')+'>'+esc(c.name)+'</option>'; }).join('')+
+      '</select>'+
+      '<select id="slStF" style="padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px">'+
+        '<option value="active"'+(SL.status==='active'?' selected':'')+'>Đang học & Học thử</option>'+
+        '<option value="trial"'+(SL.status==='trial'?' selected':'')+'>Chỉ Học thử mới</option>'+
+        '<option value="left"'+(SL.status==='left'?' selected':'')+'>Đã nghỉ</option>'+
+        '<option value="hold"'+(SL.status==='hold'?' selected':'')+'>Bảo lưu</option>'+
+        '<option value="all"'+(SL.status==='all'?' selected':'')+'>Tất cả trạng thái</option>'+
+      '</select>'+
+    '</div><div class="muted small" style="margin-top:8px">Hiển thị <b>'+fSt.length+'</b> học viên</div></div>';
+
+    if(!fSt.length){
+      html+='<div class="card empty">Không tìm thấy học viên nào phù hợp.</div>';
+    } else {
+      fSt.slice(0, 150).forEach(function(s){
+        var left=slIsLeft(s), trial=slIsTrial(s);
+        var badge=left?'<span class="chip bad">Đã nghỉ</span>':(trial?'<span class="chip sun">Học thử</span>':'<span class="chip ok">'+esc(s.status||'Đang học')+'</span>');
+        html+='<div class="card" style="padding:12px 14px;margin-bottom:8px">'+
+          '<div class="row between" style="align-items:flex-start;flex-wrap:wrap;gap:8px">'+
+            '<div>'+
+              '<div style="font-weight:700;font-size:15px">'+esc(s.name)+(s.dob?' <span class="muted small">('+esc(s.dob)+')</span>':'')+' '+badge+'</div>'+
+              '<div class="muted small" style="margin-top:3px">🏫 <b>'+esc(s.className||'–')+'</b>'+(s.branch?' ('+esc(s.branch)+')':'')+(s.phone?' · 📞 '+esc(s.phone):'')+(s.parentName?' · PH: '+esc(s.parentName):'')+'</div>'+
+              '<div class="muted small" style="margin-top:2px">💰 HP: '+slFmtMoney(s.monthlyFeeApplied||s.originalFee)+(s.discountNote?' · 🏷️ '+esc(s.discountNote):'')+(s.leaveDate?' · Nghỉ: '+esc(s.leaveDate)+(s.leaveReason?' ('+esc(s.leaveReason)+')':''):'')+'</div>'+
+              (s.note?'<div class="small" style="color:#475569;margin-top:4px">📝 '+esc(s.note)+'</div>':'')+
+            '</div>'+
+            '<div class="row" style="gap:6px;flex-wrap:wrap">'+
+              '<button class="btn sm soft" data-sleds="'+esc(s.id)+'">✏️ Sửa</button>'+
+              (!left?'<button class="btn sm plain" data-sltr="'+esc(s.id)+'">🔀 Chuyển lớp</button>':'')+
+              (!left?'<button class="btn sm warn" data-sllv="'+esc(s.id)+'">🚪 Nghỉ học</button>':'')+
+            '</div>'+
+          '</div>'+
+        '</div>';
+      });
+      if(fSt.length>150) html+='<div class="muted small" style="text-align:center;padding:8px">Đang hiện 150/'+fSt.length+' học viên. Hãy lọc theo lớp hoặc nhập từ khóa tìm kiếm để xem chính xác hơn.</div>';
+    }
+  }
+
+  $('#tb').innerHTML=html;
+  $('#slVCls').onclick=function(){ SL.view='classes'; renderSoLop(); };
+  $('#slVSt').onclick=function(){ SL.view='students'; renderSoLop(); };
+  $('#slReload').onclick=function(){ tabSoLop(true); };
+  $('#slAddSt').onclick=function(){ slStudentModal(null); };
+  $('#slAddCls').onclick=function(){ slClassModal(null); };
+  $('#slCsv').onclick=slExportCsv;
+  $('[data-slb]').forEach(function(b){ b.onclick=function(){ SL.branch=b.dataset.slb; renderSoLop(); }; });
+  $('[data-slview]').forEach(function(b){ b.onclick=function(){ SL.cls=b.dataset.slview; SL.view='students'; renderSoLop(); }; });
+  $('[data-sledc]').forEach(function(b){ b.onclick=function(){ var c=SL.classes.filter(function(x){return x.id===b.dataset.sledc;})[0]; if(c) slClassModal(c); }; });
+  $('[data-sleds]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sleds;})[0]; if(s) slStudentModal(s); }; });
+  $('[data-sltr]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sltr;})[0]; if(s) slTransferModal(s); }; });
+  $('[data-sllv]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sllv;})[0]; if(s) slLeaveModal(s); }; });
+  if($('#slQ')) $('#slQ').oninput=function(){ SL.q=this.value; renderSoLop(); var el=$('#slQ'); if(el){ el.focus(); el.setSelectionRange(el.value.length,el.value.length); } };
+  if($('#slClsF')) $('#slClsF').onchange=function(){ SL.cls=this.value; renderSoLop(); };
+  if($('#slStF')) $('#slStF').onchange=function(){ SL.status=this.value; renderSoLop(); };
+}
+function slStudentModal(st){
+  var isNew=!st; st=st||{ status:'Đang học', className:(SL.cls!=='all'?SL.cls:(SL.classes[0]?SL.classes[0].name:'')) };
+  var clsOpts=SL.classes.map(function(c){ return '<option value="'+esc(c.name)+'" data-br="'+esc(c.branch||'')+'" data-fee="'+esc(c.monthlyFee||'')+'"'+(st.className===c.name?' selected':'')+'>'+esc(c.name)+' ('+esc(c.branch||'')+')</option>'; }).join('');
+  var body='<h3>'+(isNew?'+ Thêm học viên mới':'✏️ Sửa thông tin học viên')+'</h3>'+
+    '<label class="f">Họ và tên học viên *</label><input id="sl_name" value="'+esc(st.name||'')+'" placeholder="VD: Nguyễn Minh Anh">'+
+    '<div class="row" style="gap:8px"><div style="flex:1"><label class="f">Năm sinh</label><input id="sl_dob" value="'+esc(st.dob||'')+'" placeholder="VD: 2018"></div>'+
+    '<div style="flex:1"><label class="f">Trạng thái</label><select id="sl_status">'+['Đang học','Học thử','Bảo lưu','Đã nghỉ'].map(function(x){ return '<option'+(st.status===x?' selected':'')+'>'+x+'</option>'; }).join('')+'</select></div></div>'+
+    '<label class="f">Lớp học</label><select id="sl_cls">'+clsOpts+'</select>'+
+    '<div class="row" style="gap:8px"><div style="flex:1"><label class="f">SĐT phụ huynh / HV</label><input id="sl_phone" value="'+esc(st.phone||'')+'" placeholder="09xx..."></div>'+
+    '<div style="flex:1"><label class="f">Tên phụ huynh</label><input id="sl_parent" value="'+esc(st.parentName||'')+'" placeholder="VD: Chị Lan (Zalo)"></div></div>'+
+    '<div class="row" style="gap:8px"><div style="flex:1"><label class="f">Học phí áp dụng (đ)</label><input id="sl_fee" value="'+esc(st.monthlyFeeApplied||st.originalFee||'')+'" placeholder="VD: 600000"></div>'+
+    '<div style="flex:1"><label class="f">Ưu đãi / Giảm</label><input id="sl_disc" value="'+esc(st.discountNote||'')+'" placeholder="VD: Giảm 50k ae ruột"></div></div>'+
+    '<label class="f">Ghi chú</label><textarea id="sl_note" rows="2" placeholder="VD: HV mới · học thử buổi đầu...">'+esc(st.note||'')+'</textarea>';
+  modal(body,[{label:'Hủy',value:false,cls:'plain'},{label:'💾 Lưu lại',value:true}]).then(function(ok){
+    if(!ok) return;
+    var name=$('#sl_name').value.trim(); if(!name){ toast('Vui lòng nhập tên học viên'); return; }
+    var sel=$('#sl_cls'), opt=sel.options[sel.selectedIndex]||{};
+    var payload={
+      id: st.id||null, name:name, dob:$('#sl_dob').value.trim()||null, status:$('#sl_status').value,
+      className:sel.value, branch:(opt.dataset&&opt.dataset.br)||st.branch||'',
+      phone:$('#sl_phone').value.trim()||null, parentName:$('#sl_parent').value.trim()||null,
+      monthlyFeeApplied:$('#sl_fee').value.trim()||(opt.dataset&&opt.dataset.fee)||null,
+      originalFee:st.originalFee||(opt.dataset&&opt.dataset.fee)||null,
+      discountNote:$('#sl_disc').value.trim()||null, note:$('#sl_note').value.trim()||null
+    };
+    api('t_solopSaveStudent',T.pin,payload).then(function(){ toast('Đã lưu học viên ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
+  });
+}
+function slLeaveModal(st){
+  modal('<h3>🚪 Đánh dấu nghỉ học</h3><p>Học viên: <b>'+esc(st.name)+'</b> ('+esc(st.className)+')</p>'+
+    '<label class="f">Ngày nghỉ</label><input id="sl_ldate" value="'+slTodayVN()+'">'+
+    '<label class="f">Lý do nghỉ</label><input id="sl_lrs" placeholder="VD: Chuyển nhà, bận lịch học thêm...">',
+    [{label:'Hủy',value:false,cls:'plain'},{label:'Xác nhận nghỉ',value:true,cls:'warn'}]).then(function(ok){
+    if(!ok) return;
+    api('t_solopMarkLeave',T.pin,st.id,$('#sl_ldate').value.trim(),$('#sl_lrs').value.trim())
+      .then(function(){ toast('Đã cập nhật nghỉ học ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
+  });
+}
+function slTransferModal(st){
+  var opts=SL.classes.map(function(c){ return '<option value="'+esc(c.name)+'" data-br="'+esc(c.branch||'')+'"'+(st.className===c.name?' selected':'')+'>'+esc(c.name)+' ('+esc(c.branch||'')+')</option>'; }).join('');
+  modal('<h3>🔀 Chuyển lớp</h3><p>Học viên: <b>'+esc(st.name)+'</b> · Lớp hiện tại: <b>'+esc(st.className)+'</b></p>'+
+    '<label class="f">Chuyển sang lớp mới</label><select id="sl_ncls">'+opts+'</select>'+
+    '<label class="f">Ghi chú chuyển lớp</label><input id="sl_tnote" placeholder="VD: Đổi lịch từ 23/11">',
+    [{label:'Hủy',value:false,cls:'plain'},{label:'Xác nhận chuyển',value:true}]).then(function(ok){
+    if(!ok) return;
+    var sel=$('#sl_ncls'), opt=sel.options[sel.selectedIndex]||{};
+    api('t_solopTransferClass',T.pin,st.id,sel.value,(opt.dataset&&opt.dataset.br)||'',$('#sl_tnote').value.trim())
+      .then(function(){ toast('Đã chuyển lớp ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
+  });
+}
+function slClassModal(c){
+  var isNew=!c; c=c||{};
+  var body='<h3>'+(isNew?'+ Thêm lớp mới':'✏️ Cập nhật thông tin lớp')+'</h3>'+
+    '<label class="f">Tên lớp *</label><input id="slc_name" value="'+esc(c.name||'')+'" placeholder="VD: Super Kids 2.4">'+
+    '<div class="row" style="gap:8px"><div style="flex:1"><label class="f">Cơ sở</label><input id="slc_br" value="'+esc(c.branch||'')+'" placeholder="Kim Thượng / Ninh Phát / Khóa online"></div>'+
+    '<div style="flex:1"><label class="f">Lịch học</label><input id="slc_sch" value="'+esc(c.schedule||'')+'" placeholder="VD: T2 17h30, T4 17h30"></div></div>'+
+    '<div class="row" style="gap:8px"><div style="flex:1"><label class="f">Giáo viên</label><input id="slc_gv" value="'+esc(c.teacher||'')+'"></div>'+
+    '<div style="flex:1"><label class="f">Trợ giảng</label><input id="slc_ta" value="'+esc(c.ta||'')+'"></div></div>'+
+    '<div class="row" style="gap:8px"><div style="flex:1"><label class="f">Tháng hiện tại</label><input id="slc_m" value="'+esc(c.currentMonth||'')+'"></div>'+
+    '<div style="flex:1"><label class="f">Ngày KT tháng</label><input id="slc_ex" value="'+esc(c.examDate||'')+'" placeholder="dd/mm/yyyy"></div></div>'+
+    '<div class="row" style="gap:8px"><div style="flex:1"><label class="f">Học phí tháng (đ)</label><input id="slc_fee" value="'+esc(c.monthlyFee||'')+'"></div>'+
+    '<div style="flex:1"><label class="f">Sách + HP (bookFee)</label><input id="slc_bf" value="'+esc(c.bookFee||'')+'" placeholder="VD: 300 + 600"></div></div>'+
+    '<label class="f">Ghi chú lớp</label><textarea id="slc_note" rows="2">'+esc(c.note||'')+'</textarea>';
+  modal(body,[{label:'Hủy',value:false,cls:'plain'},{label:'💾 Lưu lớp',value:true}]).then(function(ok){
+    if(!ok) return;
+    var name=$('#slc_name').value.trim(); if(!name){ toast('Vui lòng nhập tên lớp'); return; }
+    var payload={
+      id:c.id||null, name:name, branch:$('#slc_br').value.trim(), schedule:$('#slc_sch').value.trim(),
+      teacher:$('#slc_gv').value.trim()||null, ta:$('#slc_ta').value.trim()||null,
+      currentMonth:$('#slc_m').value.trim()||null, examDate:$('#slc_ex').value.trim()||null,
+      monthlyFee:$('#slc_fee').value.trim()||null, bookFee:$('#slc_bf').value.trim()||null,
+      note:$('#slc_note').value.trim()||null
+    };
+    api('t_solopSaveClass',T.pin,payload).then(function(){ toast('Đã lưu lớp ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
+  });
+}
+function slExportCsv(){
+  var cols=['id','className','branch','name','dob','parentName','phone','status','monthlyFeeApplied','discountNote','trialDate','leaveDate','leaveReason','note'];
+  var lines=['\uFEFF'+cols.join(',')];
+  (SL.students||[]).forEach(function(s){
+    lines.push(cols.map(function(k){ return '"'+String(s[k]||'').replace(/"/g,'""')+'"'; }).join(','));
+  });
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'}));
+  a.download='SoLop_IELTS_Hannah_'+slTodayVN().replace(/\//g,'-')+'.csv';
+  a.click();
+}
 
 /* ===== App cài được (PWA) – chỉ có ở bản hoc.ieltshannah.com ===== */
 var PWA={deferred:null};
