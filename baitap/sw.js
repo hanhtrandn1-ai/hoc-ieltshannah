@@ -1,5 +1,5 @@
 /* IELTS Hannah – service worker: mở app nhanh, có trang khi mất mạng. Không lưu dữ liệu bài làm. */
-var CACHE = 'ielts-hannah-v1';
+var CACHE = 'ielts-hannah-v2';
 var SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
