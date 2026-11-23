@@ -757,7 +757,8 @@ function copyText(text){
 }
 function loading(msg){ $('#app').innerHTML = header()+'<div class="loading"><div><div class="spin"></div>'+esc(msg||'Đang tải…')+'</div></div>'; }
 function header(right){
-  return '<div class="top"><div class="logo">H</div><div><h1>'+esc(BOOT.center)+'</h1><small>Bài tập về nhà</small></div><div class="sp"></div>'+(right||'')+'</div>';
+  var inst = (BOOT.standalone && !pwaStandalone()) ? '<button class="btn sm soft" type="button" onclick="pwaInstall()" style="margin-right:6px">📲 Cài app</button>' : '';
+  return '<div class="top"><div class="logo">H</div><div><h1>'+esc(BOOT.center)+'</h1><small>Bài tập về nhà</small></div><div class="sp"></div>'+inst+(right||'')+'</div>';
 }
 function showError(e, back){
   $('#app').innerHTML = header()+'<div class="card empty"><div class="e">😕</div><p>'+esc(e && e.message || e)+'</p><button class="btn" id="bk">Thử lại</button></div>';
@@ -1168,7 +1169,14 @@ function groupNames(list){
 function openHome(id){
   loading('Đang mở bài tập…');
   api('api_getStudentHome', id).then(function(h){
-    S.student=h.student; S.home=h; renderHome();
+    S.student=h.student; S.home=h;
+    var openId = store('hw_open_'+h.student.id);
+    if(openId && h.assignments.some(function(a){ return a.id===openId && !a.submission; })){
+      openAssignment(openId);
+      return;
+    }
+    store('hw_open_'+h.student.id, null);
+    renderHome();
   }).catch(function(e){
     store('hw_student', null);
     loginCode((e&&e.message)||String(e));
@@ -1220,13 +1228,50 @@ function hwCard(a){
 /* ---------------------------- Làm bài ------------------------------ */
 var W = null; // trạng thái bài đang làm
 
+function workDraftKey(aid){ return (S.student&&S.student.id)?('hw_work_'+S.student.id+'_'+aid):''; }
+function saveWorkDraft(){
+  if(!W || !W.a || !S.student || S.student.id==='preview') return;
+  try{
+    var k=workDraftKey(W.a.id); if(!k) return;
+    store(k, JSON.stringify({answers:W.answers, linksDone:W.linksDone, t0:W.t0, at:Date.now()}));
+  }catch(e){}
+}
+function loadWorkDraft(aid){
+  try{
+    var k=workDraftKey(aid), raw=k?store(k):null;
+    if(!raw) return null;
+    var d=JSON.parse(raw);
+    if(!d || (d.at && Date.now()-d.at>7*864e5)) return null;
+    return d;
+  }catch(e){ return null; }
+}
+function clearWorkDraft(aid){
+  try{ var k=workDraftKey(aid); if(k) store(k, null); }catch(e){}
+}
+
 function openAssignment(id){
   loading('Đang mở bài…');
   api('api_getAssignment', id, S.student.id).then(function(r){
     var a=r.assignment;
     prefetchTTS(ttsTextsOf(a));
-    W = { a:a, prev:r.previous, ext:r.ext||{}, answers:a.activities.map(function(){ return null; }), linksDone:a.links.map(function(){ return false; }), rec:{} , ui:{}, t0:Date.now() };
+    if(S.student && S.student.id!=='preview') store('hw_open_'+S.student.id, id);
+    var draft = loadWorkDraft(id);
+    var answers = a.activities.map(function(){ return null; });
+    var linksDone = a.links.map(function(){ return false; });
+    var restored = false;
+    if(draft){
+      if(Array.isArray(draft.answers) && draft.answers.length===a.activities.length){
+        answers = draft.answers;
+        restored = answers.some(function(x){ return x!==null; });
+      }
+      if(Array.isArray(draft.linksDone) && draft.linksDone.length===a.links.length){
+        linksDone = draft.linksDone;
+        if(linksDone.some(Boolean)) restored = true;
+      }
+    }
+    W = { a:a, prev:r.previous, ext:r.ext||{}, answers:answers, linksDone:linksDone, rec:{} , ui:{}, t0:(draft&&draft.t0)||Date.now() };
     renderWork();
+    if(restored) toast('Đã khôi phục bài làm dở 👍');
   }).catch(function(e){ showError(e, renderHome); });
 }
 
@@ -1251,7 +1296,7 @@ function renderWork(){
   if(!a.activities.length && !a.links.length) html += '<div class="card empty">Bài này chưa có nội dung.</div>';
   html += '<div class="submitbar"><div class="in"><div class="prog"><i id="pg"></i></div><button class="btn lg accent" id="submit">Nộp bài</button></div></div>';
   $('#app').innerHTML = html;
-  $('#bk').onclick=function(){ stopAllGames(); renderHome(); };
+  $('#bk').onclick=function(){ stopAllGames(); if(S.student) store('hw_open_'+S.student.id, null); renderHome(); };
   $$('[data-lk]').forEach(function(c){ c.onchange=function(){ W.linksDone[+c.dataset.lk]=c.checked; updateProgress(); }; });
   a.activities.forEach(function(act,i){
     var body=$('#act'+i+' .actbody');
@@ -1285,6 +1330,7 @@ function partsDoneLocal(){
   return d;
 }
 function updateProgress(){
+  saveWorkDraft();
   var n=W.a.activities.length+W.a.links.length; if(!n) return;
   var d=0; W.a.activities.forEach(function(_,i){ if(isDone(i)) d++; }); W.linksDone.forEach(function(x){ if(x) d++; });
   var pg=$('#pg'); if(pg) pg.style.width=Math.round(d/n*100)+'%';
@@ -1468,6 +1514,12 @@ function mountFlying(act,i,el){
 }
 
 /* Ghi âm */
+function isAndroid(){ return /Android/i.test(navigator.userAgent||''); }
+function newRecorder(stream){
+  var mime=pickMime();
+  if(mime){ try{ return new MediaRecorder(stream,{mimeType:mime}); }catch(e){} }
+  return new MediaRecorder(stream);
+}
 function pickMime(){
   if(!window.MediaRecorder) return '';
   var c=['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg;codecs=opus'];
@@ -1501,14 +1553,16 @@ function mountSpeaking(act,i,el){
     var gumDone=false, gumT=setTimeout(function(){ if(!gumDone){ gumDone=true; stEl.innerHTML='<span class="err">Micro không phản hồi. Con bấm <b>🎥 Quay video bằng điện thoại</b> bên dưới nhé.</span>'; } },8000);
     navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
       if(gumDone){ stream.getTracks().forEach(function(t){t.stop();}); return; } gumDone=true; clearTimeout(gumT);
-      var mime=pickMime(); var mr=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);
+      var mr=newRecorder(stream), mime=mr.mimeType||pickMime();
       var chunks=[], t0=Date.now(), tm;
       mr.ondataavailable=function(e){ if(e.data&&e.data.size) chunks.push(e.data); };
       mr.onstop=function(){
         clearInterval(tm); stream.getTracks().forEach(function(t){t.stop();}); b.classList.remove('on'); b.textContent='🎤'; cur=null;
-        setRec(k,new Blob(chunks,{type:mr.mimeType||mime||'audio/webm'}));
+        var blob=new Blob(chunks,{type:mr.mimeType||mime||'audio/webm'});
+        if(!blob.size){ stEl.innerHTML='<span class="err">Chưa thu được tiếng. Con thử lại hoặc bấm <b>🎥 Quay video</b> bên dưới nhé.</span>'; return; }
+        setRec(k,blob);
       };
-      mr.start(); b.classList.add('on'); b.textContent='■';
+      mr.start(250); b.classList.add('on'); b.textContent='■';
       cur={k:k,stop:function(){ if(mr.state!=='inactive') mr.stop(); }};
       tm=setInterval(function(){ var s=Math.floor((Date.now()-t0)/1000); stEl.innerHTML='<b style="color:var(--bad)">● Đang ghi '+s+'s</b> · bấm ■ để dừng'; if(s>=max) cur&&cur.stop(); },250);
     }).catch(function(){
@@ -1516,11 +1570,14 @@ function mountSpeaking(act,i,el){
       stEl.innerHTML='<span class="err">Ở đây chưa dùng được micro. Con bấm <b>🎥 Quay video bằng điện thoại</b> bên dưới (quay mình đang nói là được).</span>';
     });
   }; });
-  $$('input[type=file]',el).forEach(function(inp){ inp.onchange=function(){
-    var f=inp.files&&inp.files[0]; if(!f) return;
-    if(f.size>40*1024*1024){ toast('Video dài quá (tối đa khoảng 1 phút). Con quay ngắn lại nhé.'); return; }
-    setRec(+inp.dataset.k,f); inp.value='';
-  }; });
+  $('input[type=file]',el).forEach(function(inp){
+    inp.onclick=function(){ saveWorkDraft(); };
+    inp.onchange=function(){
+      var f=inp.files&&inp.files[0]; if(!f) return;
+      if(f.size>40*1024*1024){ toast('Video dài quá (tối đa khoảng 1 phút). Con quay ngắn lại nhé.'); return; }
+      setRec(+inp.dataset.k,f); inp.value='';
+    };
+  });
 }
 
 /* Nghe & nói – chấm phát âm */
@@ -1580,7 +1637,7 @@ function mountSay(act,i,el){
     if(cur && cur.k===k){ cur.stop(); return; }
     if(cur){ toast('Finish the other sentence first / Con bấm dừng câu đang nói trước nhé'); return; }
     try{ speechSynthesis.cancel(); }catch(e){}
-    var Rec=SAY_SR_OK?SR():null, chunks=[], mr=null, stream=null, heard=[], finished=false, srOn=false;
+    var Rec=(SAY_SR_OK && !isAndroid())?SR():null, chunks=[], mr=null, stream=null, heard=[], finished=false, srOn=false;
     function finish(){
       if(finished) return; finished=true;
       b.classList.remove('on'); b.textContent='🎤';
@@ -1625,9 +1682,9 @@ function mountSay(act,i,el){
       var gd=false, gt=setTimeout(function(){ if(!gd){ gd=true; noMic(); } },7000);
       navigator.mediaDevices.getUserMedia({audio:true}).then(function(st){
         if(gd){ st.getTracks().forEach(function(t){ t.stop(); }); return; } gd=true; clearTimeout(gt);
-        stream=st; var mime=pickMime(); mr=mime?new MediaRecorder(st,{mimeType:mime}):new MediaRecorder(st);
+        stream=st; mr=newRecorder(st);
         mr.ondataavailable=function(e){ if(e.data&&e.data.size) chunks.push(e.data); };
-        mr.start(); startSR();
+        mr.start(250); startSR();
       }).catch(function(){ if(gd) return; gd=true; clearTimeout(gt); noMic(); });
     };
     startRec();
@@ -1689,7 +1746,8 @@ function refreshExt(){
     if(JSON.stringify(W.ext)!==before) toast('✅ Đã ghi nhận bài làm trên web kia');
   }).catch(function(){});
 }
-document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') refreshExt(); });
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') refreshExt(); else saveWorkDraft(); });
+window.addEventListener('pagehide', saveWorkDraft);
 window.addEventListener('focus',function(){ refreshExt(); });
 
 /* Bài viết */
@@ -2062,6 +2120,8 @@ function doSubmit(){
   }).then(function(res){
     stopAllGames();
     W.a.activities.forEach(function(act,i){ if(act.type==='writing') store('hw_draft_'+W.a.id+'_'+i,null); });
+    clearWorkDraft(W.a.id);
+    if(S.student) store('hw_open_'+S.student.id, null);
     renderResult(res);
     api('api_getStudentHome',S.student.id).then(function(h){ S.home=h; });
   }).catch(function(e){
@@ -3792,7 +3852,7 @@ function pwaInit(){
 function pwaBar(){
   if(!BOOT.standalone || pwaStandalone() || document.getElementById('pwabar')) return;
   try{ var t=Number(localStorage.getItem('pwa_hide')||0); if(t && Date.now()-t<5*864e5) return; }catch(e){}
-  if(!PWA.deferred && !pwaIOS() && !inAppBrowser()) return; // trình duyệt chưa hỗ trợ cài → không làm phiền
+  if(!PWA.deferred && !pwaIOS() && !isAndroid() && !inAppBrowser()) return; // máy tính chưa hỗ trợ cài → không làm phiền
   var d=document.createElement('div'); d.id='pwabar';
   d.innerHTML='<img src="icon-96.png" alt=""><div class="t"><b>Cài app IELTS Hannah</b><span>Mở nhanh từ màn hình điện thoại, ghi âm ổn định</span></div><button class="btn sm" id="pwago">📲 Cài</button><button class="x" id="pwax" aria-label="Đóng">✕</button>';
   document.body.appendChild(d);
@@ -3801,9 +3861,17 @@ function pwaBar(){
 }
 function pwaInstall(){
   if(PWA.deferred){ PWA.deferred.prompt(); PWA.deferred.userChoice.then(function(){ PWA.deferred=null; }); return; }
-  if(inAppBrowser()){ modal('<h3>Mở bằng trình duyệt để cài app</h3><p>Ba mẹ bấm <b>⋯</b> ở góc trên → chọn <b>Mở bằng trình duyệt</b> (Chrome hoặc Safari), rồi bấm <b>📲 Cài</b> lần nữa nhé.</p>',[{label:'Đã hiểu',value:true}]); return; }
-  if(pwaIOS()){ modal('<h3>Cài app trên iPhone / iPad</h3><ol class="pwasteps"><li>Mở trang này bằng <b>Safari</b>.</li><li>Bấm nút <b>Chia sẻ</b> <span class="pwai">⬆️</span> ở thanh dưới cùng.</li><li>Kéo xuống, chọn <b>Thêm vào MH chính</b> (Add to Home Screen) → <b>Thêm</b>.</li></ol><p class="muted small">Mở app lần đầu, con nhập lại mã học viên 1 lần nhé.</p>',[{label:'Đã hiểu',value:true}]); return; }
-  modal('<h3>Cài app</h3><p>Bấm <b>⋮</b> ở góc trên của Chrome → chọn <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b>.</p>',[{label:'Đã hiểu',value:true}]);
+  if(inAppBrowser()){ modal('<h3>Mở bằng trình duyệt để cài app</h3><p>Hiện trang đang mở trong Zalo/Messenger nên chưa cài app được.</p><ol class="pwasteps"><li>Bấm <b>⋯</b> hoặc <b>⋮</b> ở góc trên màn hình.</li><li>Chọn <b>Mở bằng trình duyệt</b> ('+(pwaIOS()?'Safari':'Chrome')+').</li><li>Bấm lại nút <b>📲 Cài app</b> trên đầu trang.</li></ol>',[{label:'Đã hiểu',value:true}]); return; }
+  if(pwaIOS()){
+    var notSafari = /CriOS|EdgiOS|FxiOS|OPiOS/i.test(navigator.userAgent||'');
+    if(notSafari){
+      modal('<h3>Mở bằng Safari để cài app trên iPhone/iPad</h3><ol class="pwasteps"><li>Chép link <b>hoc.ieltshannah.com/baitap/</b> rồi mở bằng trình duyệt <b>Safari</b>.</li><li>Bấm nút <b>Chia sẻ</b> <span class="pwai">⬆️</span> ở thanh dưới cùng (hoặc góc trên iPad).</li><li>Kéo xuống chọn <b>Thêm vào MH chính</b> (Add to Home Screen) → <b>Thêm</b>.</li></ol>',[{label:'Đã hiểu',value:true}]);
+      return;
+    }
+    modal('<h3>Cài app trên iPhone / iPad</h3><ol class="pwasteps"><li>Bấm nút <b>Chia sẻ</b> <span class="pwai">⬆️</span> ở thanh dưới cùng của Safari (hoặc góc trên phải trên iPad).</li><li>Kéo xuống, chọn <b>Thêm vào MH chính</b> (Add to Home Screen).</li><li>Bấm <b>Thêm</b> ở góc trên phải.</li></ol><p class="muted small">Mở app từ màn hình chính lần đầu, con nhập lại mã học viên 1 lần nhé.</p>',[{label:'Đã hiểu',value:true}]);
+    return;
+  }
+  modal('<h3>Cài app trên Android</h3><ol class="pwasteps"><li><b>Trên Chrome:</b> Bấm <b>⋮</b> ở góc trên phải → chọn <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b> → <b>Cài đặt</b>.</li><li><b>Trên Samsung Internet:</b> Bấm <b>≡</b> ở góc dưới phải → <b>Thêm trang vào</b> → <b>Màn hình chờ</b>.</li></ol><p class="muted small">Sau khi cài xong, con mở từ biểu tượng <b>IELTS Hannah</b> trên màn hình điện thoại để làm bài và ghi âm ổn định nhất.</p>',[{label:'Đã hiểu',value:true}]);
 }
 pwaInit();
 
