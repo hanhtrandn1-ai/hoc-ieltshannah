@@ -3395,16 +3395,30 @@ function lpOpen(lv, m, s){
 }
 
 
-/* ===== Tab 📒 Sổ Lớp (chỉ Quản lý / Cô Hannah) ===== */
-var SL = { loaded:false, loading:false, classes:[], students:[], view:'classes', branch:'all', cls:'all', status:'active', q:'' };
+/* ===== Tab 📒 Sổ Lớp v2 (chỉ Quản lý / Cô Hannah) ===== */
+var SL = { loaded:false, loading:false, classes:[], students:[], alerts:{}, logs:[], logsLoaded:false, view:'classes', branch:'all', cls:'all', status:'active', q:'' };
 function slTodayVN(){
   var d=new Date(), dd=('0'+d.getDate()).slice(-2), mm=('0'+(d.getMonth()+1)).slice(-2), yy=d.getFullYear();
   return dd+'/'+mm+'/'+yy;
+}
+function slCurMonthStr(){
+  var d=new Date(), mm=('0'+(d.getMonth()+1)).slice(-2), yy=d.getFullYear();
+  return mm+'/'+yy;
+}
+function slParseVNDate(str){
+  var m=String(str||'').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!m) return null;
+  return new Date(+m[3], +m[2]-1, +m[1]);
+}
+function slDaysSince(str){
+  var d=slParseVNDate(str); if(!d) return null;
+  return Math.floor((Date.now()-d.getTime())/86400000);
 }
 function slFmtMoney(v){
   var n=Number(String(v||'').replace(/[^\d]/g,''));
   return n ? n.toLocaleString('vi-VN')+'đ' : (v||'–');
 }
+function slLower(s){ return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
 function slIsLeft(st){
   var s=String((st&&st.status)||'').toLowerCase();
   return s.indexOf('nghỉ')>=0 || s.indexOf('thôi')>=0;
@@ -3414,6 +3428,33 @@ function slIsTrial(st){
   var n=String((st&&st.note)||'').toLowerCase();
   return s.indexOf('thử')>=0 || (s.indexOf('đang')>=0 && n.indexOf('học thử')>=0 && n.indexOf('hv mới')>=0);
 }
+function slNeedFollowTrial(st){
+  if(slIsLeft(st) || !slIsTrial(st)) return false;
+  if(st.lastPaidDate) return false;
+  var d=slDaysSince(st.trialDate);
+  return d===null || d>=1;
+}
+function slClassOf(name){
+  for(var i=0;i<(SL.classes||[]).length;i++) if(SL.classes[i].name===name) return SL.classes[i];
+  return null;
+}
+function slTargetPaidMonth(st){
+  var c=slClassOf(st.className);
+  return (c&&c.currentMonth)?('Tháng '+c.currentMonth):slCurMonthStr();
+}
+function slIsPaidCur(st){
+  if(slIsLeft(st)) return true;
+  var pm=String(st.paidMonth||'').trim();
+  if(!pm) return false;
+  var target=slTargetPaidMonth(st), curM=slCurMonthStr();
+  return pm===target || pm===curM || pm.indexOf(curM)>=0;
+}
+function slOverdueDays(st){
+  if(slIsLeft(st) || slIsPaidCur(st)) return 0;
+  var ref=st.lastPaidDate || st.feeStartDate || st.trialDate;
+  var d=slDaysSince(ref);
+  return (d!==null && d>45) ? d : 0;
+}
 function tabSoLop(force){
   if(!isAdmin()) return;
   if(!SL.loaded || force){
@@ -3421,7 +3462,8 @@ function tabSoLop(force){
     SL.loading=true;
     $('#tb').innerHTML='<div class="card"><div class="loading"><div><div class="spin"></div>Đang tải dữ liệu Sổ Lớp…</div></div></div>';
     api('t_solopLoad',T.pin).then(function(d){
-      SL.classes=d.classes||[]; SL.students=d.students||[]; SL.loaded=true; SL.loading=false;
+      SL.classes=d.classes||[]; SL.students=d.students||[]; SL.alerts=d.alerts||{}; SL.loaded=true; SL.loading=false;
+      if(SL.view==='logs') SL.logsLoaded=false;
       renderSoLop();
     }).catch(function(e){
       SL.loading=false;
@@ -3434,13 +3476,14 @@ function tabSoLop(force){
 }
 function renderSoLop(){
   var sts=SL.students||[], clss=SL.classes||[];
-  var activeN=0, trialN=0, leftN=0;
+  var activeN=0, trialNeedN=0, unpaidN=0, overdueN=0;
   var countByCls={};
   sts.forEach(function(s){
-    if(slIsLeft(s)) leftN++;
-    else {
+    if(!slIsLeft(s)){
       activeN++;
-      if(slIsTrial(s)) trialN++;
+      if(slNeedFollowTrial(s)) trialNeedN++;
+      if(!slIsPaidCur(s)) unpaidN++;
+      if(slOverdueDays(s)>0) overdueN++;
       if(s.className) countByCls[s.className]=(countByCls[s.className]||0)+1;
     }
   });
@@ -3448,7 +3491,7 @@ function renderSoLop(){
   clss.forEach(function(c){ if(c.branch && !bSeen[c.branch]){ bSeen[c.branch]=1; branches.push(c.branch); } });
 
   var html='<div class="row between" style="margin-bottom:12px;flex-wrap:wrap;gap:8px">'+
-    '<div><h2 style="margin:0">📒 Sổ Lớp IELTS Hannah</h2><div class="muted small">Chỉ hiển thị với tài khoản Quản lý · Đồng bộ trực tiếp với Google Sheets & Antigravity</div></div>'+
+    '<div><h2 style="margin:0">📒 Sổ Lớp IELTS Hannah</h2><div class="muted small">Chỉ Quản lý thấy · Liên kết tự động App Bài tập & Google Sheets</div></div>'+
     '<div class="row" style="flex-wrap:wrap;gap:6px">'+
       '<button class="btn sm" id="slAddSt">+ Thêm học viên</button>'+
       '<button class="btn sm accent" id="slAddCls">+ Thêm lớp</button>'+
@@ -3458,12 +3501,13 @@ function renderSoLop(){
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">'+
       '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--brand)">'+clss.length+'</div><div class="muted small">Lớp học</div></div>'+
       '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:#15803d">'+activeN+'</div><div class="muted small">Đang học</div></div>'+
-      '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:#b45309">'+trialN+'</div><div class="muted small">Học thử mới</div></div>'+
-      '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:#64748b">'+leftN+'</div><div class="muted small">Đã nghỉ</div></div>'+
+      '<div class="card" style="padding:12px;margin:0;text-align:center;cursor:pointer" id="slKpiTrial"><div style="font-size:22px;font-weight:800;color:#b45309">'+trialNeedN+'</div><div class="muted small">Học thử cần chốt</div></div>'+
+      '<div class="card" style="padding:12px;margin:0;text-align:center;cursor:pointer" id="slKpiUnpaid"><div style="font-size:22px;font-weight:800;color:#dc2626">'+unpaidN+'</div><div class="muted small">Chưa đóng phí ('+overdueN+' quá hạn)</div></div>'+
     '</div>'+
     '<div class="filter" style="margin-bottom:12px">'+
-      '<button id="slVCls" class="'+(SL.view==='classes'?'on':'')+'">🏫 Danh sách Lớp ('+clss.length+')</button>'+
-      '<button id="slVSt" class="'+(SL.view==='students'?'on':'')+'">👧 Danh sách Học viên ('+sts.length+')</button>'+
+      '<button id="slVCls" class="'+(SL.view==='classes'?'on':'')+'">🏫 Lớp ('+clss.length+')</button>'+
+      '<button id="slVSt" class="'+(SL.view==='students'?'on':'')+'">👧 Học viên ('+sts.length+')</button>'+
+      '<button id="slVLog" class="'+(SL.view==='logs'?'on':'')+'">📜 Nhật ký</button>'+
     '</div>';
 
   if(SL.view==='classes'){
@@ -3496,11 +3540,31 @@ function renderSoLop(){
       '</div>';
     });
     html+='</div>';
+  } else if(SL.view==='logs'){
+    if(!SL.logsLoaded){
+      html+='<div class="card"><div class="loading"><div><div class="spin"></div>Đang tải nhật ký thay đổi…</div></div></div>';
+      $('#tb').innerHTML=html;
+      slBindCommon();
+      api('t_solopGetLogs',T.pin).then(function(rows){ SL.logs=rows||[]; SL.logsLoaded=true; renderSoLop(); })
+        .catch(function(e){ toast(e.message||String(e)); });
+      return;
+    }
+    html+='<div class="card" style="padding:12px">';
+    if(!SL.logs.length) html+='<div class="empty">Chưa có nhật ký thay đổi nào.</div>';
+    else SL.logs.forEach(function(lg){
+      html+='<div style="padding:8px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
+        '<div><span class="chip brand">'+esc(lg.action)+'</span> <b>'+esc(lg.targetName||lg.targetId)+'</b> <span class="muted small">'+esc(lg.detail||'')+'</span></div>'+
+        '<div class="muted small">'+esc(lg.time||'')+'</div></div>';
+    });
+    html+='</div>';
   } else {
     var q=SL.q.toLowerCase().trim();
     var fSt=sts.filter(function(s){
       if(SL.cls!=='all' && s.className!==SL.cls) return false;
       if(SL.status==='active' && slIsLeft(s)) return false;
+      if(SL.status==='trial_need' && !slNeedFollowTrial(s)) return false;
+      if(SL.status==='unpaid' && (slIsLeft(s) || slIsPaidCur(s))) return false;
+      if(SL.status==='overdue' && slOverdueDays(s)<=0) return false;
       if(SL.status==='trial' && !slIsTrial(s)) return false;
       if(SL.status==='left' && !slIsLeft(s)) return false;
       if(SL.status==='hold' && String(s.status||'').toLowerCase().indexOf('bảo lưu')<0) return false;
@@ -3517,6 +3581,9 @@ function renderSoLop(){
       '</select>'+
       '<select id="slStF" style="padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px">'+
         '<option value="active"'+(SL.status==='active'?' selected':'')+'>Đang học & Học thử</option>'+
+        '<option value="trial_need"'+(SL.status==='trial_need'?' selected':'')+'>⏳ Học thử cần chốt</option>'+
+        '<option value="unpaid"'+(SL.status==='unpaid'?' selected':'')+'>💸 Chưa đóng phí tháng này</option>'+
+        '<option value="overdue"'+(SL.status==='overdue'?' selected':'')+'>🚨 Quá hạn > 45 ngày</option>'+
         '<option value="trial"'+(SL.status==='trial'?' selected':'')+'>Chỉ Học thử mới</option>'+
         '<option value="left"'+(SL.status==='left'?' selected':'')+'>Đã nghỉ</option>'+
         '<option value="hold"'+(SL.status==='hold'?' selected':'')+'>Bảo lưu</option>'+
@@ -3528,17 +3595,29 @@ function renderSoLop(){
       html+='<div class="card empty">Không tìm thấy học viên nào phù hợp.</div>';
     } else {
       fSt.slice(0, 150).forEach(function(s){
-        var left=slIsLeft(s), trial=slIsTrial(s);
+        var left=slIsLeft(s), trial=slIsTrial(s), paid=slIsPaidCur(s), od=slOverdueDays(s);
+        var al=SL.alerts[slLower(s.name)]||{};
         var badge=left?'<span class="chip bad">Đã nghỉ</span>':(trial?'<span class="chip sun">Học thử</span>':'<span class="chip ok">'+esc(s.status||'Đang học')+'</span>');
+        var feeBadge=left?'':(paid?'<span class="chip ok">✅ Đã đóng '+esc(s.paidMonth)+'</span>':(od>0?'<span class="chip bad">🚨 Quá hạn '+od+' ngày</span>':'<span class="chip">💸 Chưa đóng phí</span>'));
+        var warnHtml='';
+        if(al.code) warnHtml+='<span class="chip">🔑 '+esc(al.code)+'</span>';
+        if(!left && al.hwMissing>=2) warnHtml+='<span class="chip bad">⚠️ Thiếu '+al.hwMissing+' BTVN</span>';
+        else if(!left && al.hwMissing===1) warnHtml+='<span class="chip sun">⚠️ Thiếu 1 BTVN</span>';
+        if(!left && al.mtLow>=2) warnHtml+='<span class="chip bad">⚠️ MT dưới TB '+al.mtLow+' lần</span>';
+        else if(!left && al.mtLow===1) warnHtml+='<span class="chip sun">⚠️ MT dưới TB 1 lần</span>';
+
         html+='<div class="card" style="padding:12px 14px;margin-bottom:8px">'+
           '<div class="row between" style="align-items:flex-start;flex-wrap:wrap;gap:8px">'+
             '<div>'+
-              '<div style="font-weight:700;font-size:15px">'+esc(s.name)+(s.dob?' <span class="muted small">('+esc(s.dob)+')</span>':'')+' '+badge+'</div>'+
-              '<div class="muted small" style="margin-top:3px">🏫 <b>'+esc(s.className||'–')+'</b>'+(s.branch?' ('+esc(s.branch)+')':'')+(s.phone?' · 📞 '+esc(s.phone):'')+(s.parentName?' · PH: '+esc(s.parentName):'')+'</div>'+
-              '<div class="muted small" style="margin-top:2px">💰 HP: '+slFmtMoney(s.monthlyFeeApplied||s.originalFee)+(s.discountNote?' · 🏷️ '+esc(s.discountNote):'')+(s.leaveDate?' · Nghỉ: '+esc(s.leaveDate)+(s.leaveReason?' ('+esc(s.leaveReason)+')':''):'')+'</div>'+
+              '<div style="font-weight:700;font-size:15px">'+esc(s.name)+(s.dob?' <span class="muted small">('+esc(s.dob)+')</span>':'')+' '+badge+' '+feeBadge+'</div>'+
+              (warnHtml?'<div class="chips" style="margin-top:4px">'+warnHtml+'</div>':'')+
+              '<div class="muted small" style="margin-top:4px">🏫 <b>'+esc(s.className||'–')+'</b>'+(s.branch?' ('+esc(s.branch)+')':'')+(s.phone?' · 📞 '+esc(s.phone):'')+(s.parentName?' · PH: '+esc(s.parentName):'')+'</div>'+
+              '<div class="muted small" style="margin-top:2px">💰 HP: '+slFmtMoney(s.monthlyFeeApplied||s.originalFee)+(s.discountNote?' · 🏷️ '+esc(s.discountNote):'')+(s.lastPaidDate?' · Đóng gần nhất: '+esc(s.lastPaidDate):'')+(s.leaveDate?' · Nghỉ: '+esc(s.leaveDate)+(s.leaveReason?' ('+esc(s.leaveReason)+')':''):'')+'</div>'+
               (s.note?'<div class="small" style="color:#475569;margin-top:4px">📝 '+esc(s.note)+'</div>':'')+
             '</div>'+
             '<div class="row" style="gap:6px;flex-wrap:wrap">'+
+              (!left&&!paid?'<button class="btn sm" data-slpay="'+esc(s.id)+'">💵 Đóng phí</button>':'')+
+              (!left?'<button class="btn sm accent" data-slmsg="'+esc(s.id)+'">💬 Tin HP</button>':'')+
               '<button class="btn sm soft" data-sleds="'+esc(s.id)+'">✏️ Sửa</button>'+
               (!left?'<button class="btn sm plain" data-sltr="'+esc(s.id)+'">🔀 Chuyển lớp</button>':'')+
               (!left?'<button class="btn sm warn" data-sllv="'+esc(s.id)+'">🚪 Nghỉ học</button>':'')+
@@ -3551,21 +3630,63 @@ function renderSoLop(){
   }
 
   $('#tb').innerHTML=html;
+  slBindCommon();
+}
+function slBindCommon(){
   $('#slVCls').onclick=function(){ SL.view='classes'; renderSoLop(); };
   $('#slVSt').onclick=function(){ SL.view='students'; renderSoLop(); };
-  $('#slReload').onclick=function(){ tabSoLop(true); };
+  $('#slVLog').onclick=function(){ SL.view='logs'; SL.logsLoaded=false; renderSoLop(); };
+  $('#slReload').onclick=function(){ SL.logsLoaded=false; tabSoLop(true); };
   $('#slAddSt').onclick=function(){ slStudentModal(null); };
   $('#slAddCls').onclick=function(){ slClassModal(null); };
   $('#slCsv').onclick=slExportCsv;
+  if($('#slKpiTrial')) $('#slKpiTrial').onclick=function(){ SL.view='students'; SL.status='trial_need'; SL.cls='all'; renderSoLop(); };
+  if($('#slKpiUnpaid')) $('#slKpiUnpaid').onclick=function(){ SL.view='students'; SL.status='unpaid'; SL.cls='all'; renderSoLop(); };
   $$('[data-slb]').forEach(function(b){ b.onclick=function(){ SL.branch=b.dataset.slb; renderSoLop(); }; });
   $$('[data-slview]').forEach(function(b){ b.onclick=function(){ SL.cls=b.dataset.slview; SL.view='students'; renderSoLop(); }; });
   $$('[data-sledc]').forEach(function(b){ b.onclick=function(){ var c=SL.classes.filter(function(x){return x.id===b.dataset.sledc;})[0]; if(c) slClassModal(c); }; });
   $$('[data-sleds]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sleds;})[0]; if(s) slStudentModal(s); }; });
   $$('[data-sltr]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sltr;})[0]; if(s) slTransferModal(s); }; });
   $$('[data-sllv]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sllv;})[0]; if(s) slLeaveModal(s); }; });
+  $$('[data-slpay]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.slpay;})[0]; if(s) slPayModal(s); }; });
+  $$('[data-slmsg]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.slmsg;})[0]; if(s) slFeeMsgModal(s); }; });
   if($('#slQ')) $('#slQ').oninput=function(){ SL.q=this.value; renderSoLop(); var el=$('#slQ'); if(el){ el.focus(); el.setSelectionRange(el.value.length,el.value.length); } };
   if($('#slClsF')) $('#slClsF').onchange=function(){ SL.cls=this.value; renderSoLop(); };
   if($('#slStF')) $('#slStF').onchange=function(){ SL.status=this.value; renderSoLop(); };
+}
+function slPayModal(st){
+  var defM=slTargetPaidMonth(st), defAmt=String(st.monthlyFeeApplied||st.originalFee||'').replace(/[^\d]/g,'');
+  modal('<h3>💵 Xác nhận đóng học phí</h3><p>Học viên: <b>'+esc(st.name)+'</b> · Lớp: <b>'+esc(st.className)+'</b></p>'+
+    '<label class="f">Kỳ / Tháng đóng</label><input id="slp_m" value="'+esc(defM)+'">'+
+    '<div class="row" style="gap:8px"><div style="flex:1"><label class="f">Ngày đóng</label><input id="slp_d" value="'+slTodayVN()+'"></div>'+
+    '<div style="flex:1"><label class="f">Số tiền (đ)</label><input id="slp_a" value="'+esc(defAmt)+'"></div></div>',
+    [{label:'Hủy',value:false,cls:'plain'},{label:'✅ Xác nhận đã đóng',value:true}]).then(function(ok){
+    if(!ok) return;
+    api('t_solopMarkPaid',T.pin,st.id,$('#slp_m').value.trim(),$('#slp_d').value.trim(),$('#slp_a').value.trim())
+      .then(function(){ toast('Đã ghi nhận đóng học phí ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
+  });
+}
+function slFeeMsgModal(st){
+  var c=slClassOf(st.className)||{};
+  var fee=Number(String(st.monthlyFeeApplied||st.originalFee||c.monthlyFee||'0').replace(/[^\d]/g,''));
+  var book=0;
+  if(slIsTrial(st) && c.bookFee && c.bookFee.indexOf('+')>=0){
+    book=Number(c.bookFee.split('+')[0].replace(/[^\d]/g,''))*1000;
+  }
+  var total=fee+book;
+  var tm=slTargetPaidMonth(st);
+  var msg='Dạ cô Hannah gửi ba mẹ thông báo học phí '+tm+' của bé '+st.name+' – lớp '+st.className+' ạ:\n'+
+    '• Học phí tháng: '+slFmtMoney(fee)+(st.discountNote?' ('+st.discountNote+')':'')+'\n'+
+    (book?'• Tiền giáo trình (đóng 1 lần): '+slFmtMoney(book)+'\n':'')+
+    '➡️ Tổng cộng: '+slFmtMoney(total)+'\n\n'+
+    'Ba mẹ chuyển khoản giúp cô vào tài khoản:\n'+
+    '• Ngân hàng: ACB\n• Số TK: 48944637\n• Chủ TK: HO KINH DOANH TRAN THI HONG HANH 1992\n'+
+    '• Nội dung: '+st.name+' '+st.className+'\n'+
+    'Chuyển xong ba mẹ gửi ảnh biên lai qua đây giúp cô nha. Cô cảm ơn ba mẹ ạ ❤️';
+  modal('<h3>💬 Tin nhắn báo học phí</h3><textarea id="slm_txt" rows="10" style="width:100%;font-size:14px">'+esc(msg)+'</textarea>',
+    [{label:'Đóng',value:false,cls:'plain'},{label:'📋 Copy tin nhắn',value:true}]).then(function(ok){
+    if(ok) copyText($('#slm_txt').value);
+  });
 }
 function slStudentModal(st){
   var isNew=!st; st=st||{ status:'Đang học', className:(SL.cls!=='all'?SL.cls:(SL.classes[0]?SL.classes[0].name:'')) };
@@ -3590,9 +3711,10 @@ function slStudentModal(st){
       phone:$('#sl_phone').value.trim()||null, parentName:$('#sl_parent').value.trim()||null,
       monthlyFeeApplied:$('#sl_fee').value.trim()||(opt.dataset&&opt.dataset.fee)||null,
       originalFee:st.originalFee||(opt.dataset&&opt.dataset.fee)||null,
-      discountNote:$('#sl_disc').value.trim()||null, note:$('#sl_note').value.trim()||null
+      discountNote:$('#sl_disc').value.trim()||null, note:$('#sl_note').value.trim()||null,
+      trialDate: st.trialDate || ($('#sl_status').value==='Học thử'?slTodayVN():null)
     };
-    api('t_solopSaveStudent',T.pin,payload).then(function(){ toast('Đã lưu học viên ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
+    api('t_solopSaveStudent',T.pin,payload).then(function(){ toast('Đã lưu & đồng bộ App Bài tập ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
   });
 }
 function slLeaveModal(st){
@@ -3602,7 +3724,7 @@ function slLeaveModal(st){
     [{label:'Hủy',value:false,cls:'plain'},{label:'Xác nhận nghỉ',value:true,cls:'warn'}]).then(function(ok){
     if(!ok) return;
     api('t_solopMarkLeave',T.pin,st.id,$('#sl_ldate').value.trim(),$('#sl_lrs').value.trim())
-      .then(function(){ toast('Đã cập nhật nghỉ học ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
+      .then(function(){ toast('Đã cập nhật nghỉ học & khóa tài khoản BTVN ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
   });
 }
 function slTransferModal(st){
@@ -3614,7 +3736,7 @@ function slTransferModal(st){
     if(!ok) return;
     var sel=$('#sl_ncls'), opt=sel.options[sel.selectedIndex]||{};
     api('t_solopTransferClass',T.pin,st.id,sel.value,(opt.dataset&&opt.dataset.br)||'',$('#sl_tnote').value.trim())
-      .then(function(){ toast('Đã chuyển lớp ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
+      .then(function(){ toast('Đã chuyển lớp & đồng bộ ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
   });
 }
 function slClassModal(c){
@@ -3644,7 +3766,7 @@ function slClassModal(c){
   });
 }
 function slExportCsv(){
-  var cols=['id','className','branch','name','dob','parentName','phone','status','monthlyFeeApplied','discountNote','trialDate','leaveDate','leaveReason','note'];
+  var cols=['id','className','branch','name','dob','parentName','phone','status','monthlyFeeApplied','discountNote','paidMonth','lastPaidDate','trialDate','leaveDate','leaveReason','note'];
   var lines=['\uFEFF'+cols.join(',')];
   (SL.students||[]).forEach(function(s){
     lines.push(cols.map(function(k){ return '"'+String(s[k]||'').replace(/"/g,'""')+'"'; }).join(','));
