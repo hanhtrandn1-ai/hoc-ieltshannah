@@ -2173,7 +2173,7 @@ function renderTeacher(){
     (isAdmin()?'<button data-t="teachers" class="'+(T.tab==='teachers'?'on':'')+'">👩‍🏫 Giáo viên</button>':'')+
     (isAdmin()?'<button data-t="links" class="'+(T.tab==='links'?'on':'')+'">🔑 Mã lớp & link</button>':'')+'</div>';
   $('#app').innerHTML=html+'<div id="tb"></div>';
-  $('.tabs button').forEach(function(b){ b.onclick=function(){ T.tab=b.dataset.t; renderTeacher(); }; });
+  $$('.tabs button').forEach(function(b){ b.onclick=function(){ T.tab=b.dataset.t; renderTeacher(); }; });
   $('#out').onclick=function(){ sstore('hw_pin',null); T.pin=null; BOOT.teacher=false; startStudent(); };
   if(T.tab==='ov') tabOverview(); else if(T.tab==='rep') tabReports(); else if(T.tab==='hw') tabHomework(); else if(T.tab==='mini') tabMini(); else if(T.tab==='lp') tabLP(); else if(T.tab==='students') tabStudents(); else if(T.tab==='scores') tabScores(); else if(T.tab==='solop'&&isAdmin()) tabSoLop(); else if(T.tab==='teachers') tabTeachers(); else if(isAdmin()) tabLinks(); else tabHomework();
 }
@@ -3557,12 +3557,12 @@ function renderSoLop(){
   $('#slAddSt').onclick=function(){ slStudentModal(null); };
   $('#slAddCls').onclick=function(){ slClassModal(null); };
   $('#slCsv').onclick=slExportCsv;
-  $('[data-slb]').forEach(function(b){ b.onclick=function(){ SL.branch=b.dataset.slb; renderSoLop(); }; });
-  $('[data-slview]').forEach(function(b){ b.onclick=function(){ SL.cls=b.dataset.slview; SL.view='students'; renderSoLop(); }; });
-  $('[data-sledc]').forEach(function(b){ b.onclick=function(){ var c=SL.classes.filter(function(x){return x.id===b.dataset.sledc;})[0]; if(c) slClassModal(c); }; });
-  $('[data-sleds]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sleds;})[0]; if(s) slStudentModal(s); }; });
-  $('[data-sltr]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sltr;})[0]; if(s) slTransferModal(s); }; });
-  $('[data-sllv]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sllv;})[0]; if(s) slLeaveModal(s); }; });
+  $$('[data-slb]').forEach(function(b){ b.onclick=function(){ SL.branch=b.dataset.slb; renderSoLop(); }; });
+  $$('[data-slview]').forEach(function(b){ b.onclick=function(){ SL.cls=b.dataset.slview; SL.view='students'; renderSoLop(); }; });
+  $$('[data-sledc]').forEach(function(b){ b.onclick=function(){ var c=SL.classes.filter(function(x){return x.id===b.dataset.sledc;})[0]; if(c) slClassModal(c); }; });
+  $$('[data-sleds]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sleds;})[0]; if(s) slStudentModal(s); }; });
+  $$('[data-sltr]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sltr;})[0]; if(s) slTransferModal(s); }; });
+  $$('[data-sllv]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sllv;})[0]; if(s) slLeaveModal(s); }; });
   if($('#slQ')) $('#slQ').oninput=function(){ SL.q=this.value; renderSoLop(); var el=$('#slQ'); if(el){ el.focus(); el.setSelectionRange(el.value.length,el.value.length); } };
   if($('#slClsF')) $('#slClsF').onchange=function(){ SL.cls=this.value; renderSoLop(); };
   if($('#slStF')) $('#slStF').onchange=function(){ SL.status=this.value; renderSoLop(); };
