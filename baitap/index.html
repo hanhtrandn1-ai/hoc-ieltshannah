@@ -1575,7 +1575,9 @@ function mountSpeaking(act,i,el){
     inp.onchange=function(){
       var f=inp.files&&inp.files[0]; if(!f) return;
       if(f.size>40*1024*1024){ toast('Video dài quá (tối đa khoảng 1 phút). Con quay ngắn lại nhé.'); return; }
-      setRec(+inp.dataset.k,f); inp.value='';
+      var k=+inp.dataset.k, tp=f.type||'video/mp4'; inp.value='';
+      if(f.arrayBuffer){ f.arrayBuffer().then(function(ab){ setRec(k,new Blob([ab],{type:tp})); }).catch(function(){ setRec(k,f); }); }
+      else setRec(k,f);
     };
   });
 }
@@ -2097,7 +2099,19 @@ function ncAutoSave(i){
 
 /* ---------------------------- Nộp bài ------------------------------ */
 function blobToB64(blob){
-  return new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){ res(String(r.result).split(',')[1]||''); }; r.onerror=rej; r.readAsDataURL(blob); });
+  if(blob && blob.arrayBuffer){
+    return blob.arrayBuffer().then(function(ab){
+      var u=new Uint8Array(ab), out='', chunk=0x8000;
+      for(var i=0;i<u.length;i+=chunk){ out+=String.fromCharCode.apply(null,u.subarray(i,i+chunk)); }
+      return btoa(out);
+    });
+  }
+  return new Promise(function(res,rej){
+    var r=new FileReader();
+    r.onload=function(){ res(String(r.result).split(',')[1]||''); };
+    r.onerror=function(){ rej(new Error('Không đọc được file ghi âm/video ('+((r.error&&r.error.name)||'lỗi tệp')+'). Con ghi âm hoặc chọn lại file rồi nộp nhé.')); };
+    r.readAsDataURL(blob);
+  });
 }
 function trySubmit(){
   var missing=[];
