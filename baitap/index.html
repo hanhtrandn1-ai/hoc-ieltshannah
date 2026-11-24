@@ -1570,7 +1570,7 @@ function mountSpeaking(act,i,el){
       stEl.innerHTML='<span class="err">Ở đây chưa dùng được micro. Con bấm <b>🎥 Quay video bằng điện thoại</b> bên dưới (quay mình đang nói là được).</span>';
     });
   }; });
-  $('input[type=file]',el).forEach(function(inp){
+  $$('input[type=file]',el).forEach(function(inp){
     inp.onclick=function(){ saveWorkDraft(); };
     inp.onchange=function(){
       var f=inp.files&&inp.files[0]; if(!f) return;
@@ -3469,30 +3469,16 @@ function lpOpen(lv, m, s){
 }
 
 
-/* ===== Tab 📒 Sổ Lớp v2 (chỉ Quản lý / Cô Hannah) ===== */
-var SL = { loaded:false, loading:false, classes:[], students:[], alerts:{}, logs:[], logsLoaded:false, view:'classes', branch:'all', cls:'all', status:'active', q:'' };
+/* ===== Tab 📒 Sổ Lớp (chỉ Quản lý / Cô Hannah) ===== */
+var SL = { loaded:false, loading:false, classes:[], students:[], view:'classes', branch:'all', cls:'all', status:'active', q:'', payMonth:'2026-11' };
 function slTodayVN(){
   var d=new Date(), dd=('0'+d.getDate()).slice(-2), mm=('0'+(d.getMonth()+1)).slice(-2), yy=d.getFullYear();
   return dd+'/'+mm+'/'+yy;
-}
-function slCurMonthStr(){
-  var d=new Date(), mm=('0'+(d.getMonth()+1)).slice(-2), yy=d.getFullYear();
-  return mm+'/'+yy;
-}
-function slParseVNDate(str){
-  var m=String(str||'').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if(!m) return null;
-  return new Date(+m[3], +m[2]-1, +m[1]);
-}
-function slDaysSince(str){
-  var d=slParseVNDate(str); if(!d) return null;
-  return Math.floor((Date.now()-d.getTime())/86400000);
 }
 function slFmtMoney(v){
   var n=Number(String(v||'').replace(/[^\d]/g,''));
   return n ? n.toLocaleString('vi-VN')+'đ' : (v||'–');
 }
-function slLower(s){ return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
 function slIsLeft(st){
   var s=String((st&&st.status)||'').toLowerCase();
   return s.indexOf('nghỉ')>=0 || s.indexOf('thôi')>=0;
@@ -3502,33 +3488,6 @@ function slIsTrial(st){
   var n=String((st&&st.note)||'').toLowerCase();
   return s.indexOf('thử')>=0 || (s.indexOf('đang')>=0 && n.indexOf('học thử')>=0 && n.indexOf('hv mới')>=0);
 }
-function slNeedFollowTrial(st){
-  if(slIsLeft(st) || !slIsTrial(st)) return false;
-  if(st.lastPaidDate) return false;
-  var d=slDaysSince(st.trialDate);
-  return d===null || d>=1;
-}
-function slClassOf(name){
-  for(var i=0;i<(SL.classes||[]).length;i++) if(SL.classes[i].name===name) return SL.classes[i];
-  return null;
-}
-function slTargetPaidMonth(st){
-  var c=slClassOf(st.className);
-  return (c&&c.currentMonth)?('Tháng '+c.currentMonth):slCurMonthStr();
-}
-function slIsPaidCur(st){
-  if(slIsLeft(st)) return true;
-  var pm=String(st.paidMonth||'').trim();
-  if(!pm) return false;
-  var target=slTargetPaidMonth(st), curM=slCurMonthStr();
-  return pm===target || pm===curM || pm.indexOf(curM)>=0;
-}
-function slOverdueDays(st){
-  if(slIsLeft(st) || slIsPaidCur(st)) return 0;
-  var ref=st.lastPaidDate || st.feeStartDate || st.trialDate;
-  var d=slDaysSince(ref);
-  return (d!==null && d>45) ? d : 0;
-}
 function tabSoLop(force){
   if(!isAdmin()) return;
   if(!SL.loaded || force){
@@ -3536,8 +3495,7 @@ function tabSoLop(force){
     SL.loading=true;
     $('#tb').innerHTML='<div class="card"><div class="loading"><div><div class="spin"></div>Đang tải dữ liệu Sổ Lớp…</div></div></div>';
     api('t_solopLoad',T.pin).then(function(d){
-      SL.classes=d.classes||[]; SL.students=d.students||[]; SL.alerts=d.alerts||{}; SL.loaded=true; SL.loading=false;
-      if(SL.view==='logs') SL.logsLoaded=false;
+      SL.classes=d.classes||[]; SL.students=d.students||[]; SL.loaded=true; SL.loading=false;
       renderSoLop();
     }).catch(function(e){
       SL.loading=false;
@@ -3550,14 +3508,13 @@ function tabSoLop(force){
 }
 function renderSoLop(){
   var sts=SL.students||[], clss=SL.classes||[];
-  var activeN=0, trialNeedN=0, unpaidN=0, overdueN=0;
+  var activeN=0, trialN=0, leftN=0;
   var countByCls={};
   sts.forEach(function(s){
-    if(!slIsLeft(s)){
+    if(slIsLeft(s)) leftN++;
+    else {
       activeN++;
-      if(slNeedFollowTrial(s)) trialNeedN++;
-      if(!slIsPaidCur(s)) unpaidN++;
-      if(slOverdueDays(s)>0) overdueN++;
+      if(slIsTrial(s)) trialN++;
       if(s.className) countByCls[s.className]=(countByCls[s.className]||0)+1;
     }
   });
@@ -3565,7 +3522,7 @@ function renderSoLop(){
   clss.forEach(function(c){ if(c.branch && !bSeen[c.branch]){ bSeen[c.branch]=1; branches.push(c.branch); } });
 
   var html='<div class="row between" style="margin-bottom:12px;flex-wrap:wrap;gap:8px">'+
-    '<div><h2 style="margin:0">📒 Sổ Lớp IELTS Hannah</h2><div class="muted small">Chỉ Quản lý thấy · Liên kết tự động App Bài tập & Google Sheets</div></div>'+
+    '<div><h2 style="margin:0">📒 Sổ Lớp IELTS Hannah</h2><div class="muted small">Chỉ hiển thị với tài khoản Quản lý · Đồng bộ trực tiếp với Google Sheets & Antigravity</div></div>'+
     '<div class="row" style="flex-wrap:wrap;gap:6px">'+
       '<button class="btn sm" id="slAddSt">+ Thêm học viên</button>'+
       '<button class="btn sm accent" id="slAddCls">+ Thêm lớp</button>'+
@@ -3575,16 +3532,18 @@ function renderSoLop(){
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">'+
       '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:var(--brand)">'+clss.length+'</div><div class="muted small">Lớp học</div></div>'+
       '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:#15803d">'+activeN+'</div><div class="muted small">Đang học</div></div>'+
-      '<div class="card" style="padding:12px;margin:0;text-align:center;cursor:pointer" id="slKpiTrial"><div style="font-size:22px;font-weight:800;color:#b45309">'+trialNeedN+'</div><div class="muted small">Học thử cần chốt</div></div>'+
-      '<div class="card" style="padding:12px;margin:0;text-align:center;cursor:pointer" id="slKpiUnpaid"><div style="font-size:22px;font-weight:800;color:#dc2626">'+unpaidN+'</div><div class="muted small">Chưa đóng phí ('+overdueN+' quá hạn)</div></div>'+
+      '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:#b45309">'+trialN+'</div><div class="muted small">Học thử mới</div></div>'+
+      '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:22px;font-weight:800;color:#64748b">'+leftN+'</div><div class="muted small">Đã nghỉ</div></div>'+
     '</div>'+
     '<div class="filter" style="margin-bottom:12px">'+
-      '<button id="slVCls" class="'+(SL.view==='classes'?'on':'')+'">🏫 Lớp ('+clss.length+')</button>'+
-      '<button id="slVSt" class="'+(SL.view==='students'?'on':'')+'">👧 Học viên ('+sts.length+')</button>'+
-      '<button id="slVLog" class="'+(SL.view==='logs'?'on':'')+'">📜 Nhật ký</button>'+
+      '<button id="slVCls" class="'+(SL.view==='classes'?'on':'')+'">🏫 Danh sách Lớp ('+clss.length+')</button>'+
+      '<button id="slVSt" class="'+(SL.view==='students'?'on':'')+'">👧 Danh sách Học viên ('+sts.length+')</button>'+
+      '<button id="slVPay" class="'+(SL.view==='payroll'?'on':'')+'">⏱️ Chấm công & Bảng Lương</button>'+
     '</div>';
 
-  if(SL.view==='classes'){
+  if(SL.view==='payroll'){
+    html += slRenderPayrollHtml();
+  } else if(SL.view==='classes'){
     html+='<div class="filter" style="margin-bottom:12px"><button data-slb="all" class="'+(SL.branch==='all'?'on':'')+'">Tất cả cơ sở</button>'+
       branches.map(function(b){ return '<button data-slb="'+esc(b)+'" class="'+(SL.branch===b?'on':'')+'">'+esc(b)+'</button>'; }).join('')+'</div>';
     var fCls=clss.filter(function(c){ return SL.branch==='all'||c.branch===SL.branch; });
@@ -3614,31 +3573,11 @@ function renderSoLop(){
       '</div>';
     });
     html+='</div>';
-  } else if(SL.view==='logs'){
-    if(!SL.logsLoaded){
-      html+='<div class="card"><div class="loading"><div><div class="spin"></div>Đang tải nhật ký thay đổi…</div></div></div>';
-      $('#tb').innerHTML=html;
-      slBindCommon();
-      api('t_solopGetLogs',T.pin).then(function(rows){ SL.logs=rows||[]; SL.logsLoaded=true; renderSoLop(); })
-        .catch(function(e){ toast(e.message||String(e)); });
-      return;
-    }
-    html+='<div class="card" style="padding:12px">';
-    if(!SL.logs.length) html+='<div class="empty">Chưa có nhật ký thay đổi nào.</div>';
-    else SL.logs.forEach(function(lg){
-      html+='<div style="padding:8px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
-        '<div><span class="chip brand">'+esc(lg.action)+'</span> <b>'+esc(lg.targetName||lg.targetId)+'</b> <span class="muted small">'+esc(lg.detail||'')+'</span></div>'+
-        '<div class="muted small">'+esc(lg.time||'')+'</div></div>';
-    });
-    html+='</div>';
   } else {
     var q=SL.q.toLowerCase().trim();
     var fSt=sts.filter(function(s){
       if(SL.cls!=='all' && s.className!==SL.cls) return false;
       if(SL.status==='active' && slIsLeft(s)) return false;
-      if(SL.status==='trial_need' && !slNeedFollowTrial(s)) return false;
-      if(SL.status==='unpaid' && (slIsLeft(s) || slIsPaidCur(s))) return false;
-      if(SL.status==='overdue' && slOverdueDays(s)<=0) return false;
       if(SL.status==='trial' && !slIsTrial(s)) return false;
       if(SL.status==='left' && !slIsLeft(s)) return false;
       if(SL.status==='hold' && String(s.status||'').toLowerCase().indexOf('bảo lưu')<0) return false;
@@ -3655,9 +3594,6 @@ function renderSoLop(){
       '</select>'+
       '<select id="slStF" style="padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px">'+
         '<option value="active"'+(SL.status==='active'?' selected':'')+'>Đang học & Học thử</option>'+
-        '<option value="trial_need"'+(SL.status==='trial_need'?' selected':'')+'>⏳ Học thử cần chốt</option>'+
-        '<option value="unpaid"'+(SL.status==='unpaid'?' selected':'')+'>💸 Chưa đóng phí tháng này</option>'+
-        '<option value="overdue"'+(SL.status==='overdue'?' selected':'')+'>🚨 Quá hạn > 45 ngày</option>'+
         '<option value="trial"'+(SL.status==='trial'?' selected':'')+'>Chỉ Học thử mới</option>'+
         '<option value="left"'+(SL.status==='left'?' selected':'')+'>Đã nghỉ</option>'+
         '<option value="hold"'+(SL.status==='hold'?' selected':'')+'>Bảo lưu</option>'+
@@ -3669,29 +3605,17 @@ function renderSoLop(){
       html+='<div class="card empty">Không tìm thấy học viên nào phù hợp.</div>';
     } else {
       fSt.slice(0, 150).forEach(function(s){
-        var left=slIsLeft(s), trial=slIsTrial(s), paid=slIsPaidCur(s), od=slOverdueDays(s);
-        var al=SL.alerts[slLower(s.name)]||{};
+        var left=slIsLeft(s), trial=slIsTrial(s);
         var badge=left?'<span class="chip bad">Đã nghỉ</span>':(trial?'<span class="chip sun">Học thử</span>':'<span class="chip ok">'+esc(s.status||'Đang học')+'</span>');
-        var feeBadge=left?'':(paid?'<span class="chip ok">✅ Đã đóng '+esc(s.paidMonth)+'</span>':(od>0?'<span class="chip bad">🚨 Quá hạn '+od+' ngày</span>':'<span class="chip">💸 Chưa đóng phí</span>'));
-        var warnHtml='';
-        if(al.code) warnHtml+='<span class="chip">🔑 '+esc(al.code)+'</span>';
-        if(!left && al.hwMissing>=2) warnHtml+='<span class="chip bad">⚠️ Thiếu '+al.hwMissing+' BTVN</span>';
-        else if(!left && al.hwMissing===1) warnHtml+='<span class="chip sun">⚠️ Thiếu 1 BTVN</span>';
-        if(!left && al.mtLow>=2) warnHtml+='<span class="chip bad">⚠️ MT dưới TB '+al.mtLow+' lần</span>';
-        else if(!left && al.mtLow===1) warnHtml+='<span class="chip sun">⚠️ MT dưới TB 1 lần</span>';
-
         html+='<div class="card" style="padding:12px 14px;margin-bottom:8px">'+
           '<div class="row between" style="align-items:flex-start;flex-wrap:wrap;gap:8px">'+
             '<div>'+
-              '<div style="font-weight:700;font-size:15px">'+esc(s.name)+(s.dob?' <span class="muted small">('+esc(s.dob)+')</span>':'')+' '+badge+' '+feeBadge+'</div>'+
-              (warnHtml?'<div class="chips" style="margin-top:4px">'+warnHtml+'</div>':'')+
-              '<div class="muted small" style="margin-top:4px">🏫 <b>'+esc(s.className||'–')+'</b>'+(s.branch?' ('+esc(s.branch)+')':'')+(s.phone?' · 📞 '+esc(s.phone):'')+(s.parentName?' · PH: '+esc(s.parentName):'')+'</div>'+
-              '<div class="muted small" style="margin-top:2px">💰 HP: '+slFmtMoney(s.monthlyFeeApplied||s.originalFee)+(s.discountNote?' · 🏷️ '+esc(s.discountNote):'')+(s.lastPaidDate?' · Đóng gần nhất: '+esc(s.lastPaidDate):'')+(s.leaveDate?' · Nghỉ: '+esc(s.leaveDate)+(s.leaveReason?' ('+esc(s.leaveReason)+')':''):'')+'</div>'+
+              '<div style="font-weight:700;font-size:15px">'+esc(s.name)+(s.dob?' <span class="muted small">('+esc(s.dob)+')</span>':'')+' '+badge+'</div>'+
+              '<div class="muted small" style="margin-top:3px">🏫 <b>'+esc(s.className||'–')+'</b>'+(s.branch?' ('+esc(s.branch)+')':'')+(s.phone?' · 📞 '+esc(s.phone):'')+(s.parentName?' · PH: '+esc(s.parentName):'')+'</div>'+
+              '<div class="muted small" style="margin-top:2px">💰 HP: '+slFmtMoney(s.monthlyFeeApplied||s.originalFee)+(s.discountNote?' · 🏷️ '+esc(s.discountNote):'')+(s.leaveDate?' · Nghỉ: '+esc(s.leaveDate)+(s.leaveReason?' ('+esc(s.leaveReason)+')':''):'')+'</div>'+
               (s.note?'<div class="small" style="color:#475569;margin-top:4px">📝 '+esc(s.note)+'</div>':'')+
             '</div>'+
             '<div class="row" style="gap:6px;flex-wrap:wrap">'+
-              (!left&&!paid?'<button class="btn sm" data-slpay="'+esc(s.id)+'">💵 Đóng phí</button>':'')+
-              (!left?'<button class="btn sm accent" data-slmsg="'+esc(s.id)+'">💬 Tin HP</button>':'')+
               '<button class="btn sm soft" data-sleds="'+esc(s.id)+'">✏️ Sửa</button>'+
               (!left?'<button class="btn sm plain" data-sltr="'+esc(s.id)+'">🔀 Chuyển lớp</button>':'')+
               (!left?'<button class="btn sm warn" data-sllv="'+esc(s.id)+'">🚪 Nghỉ học</button>':'')+
@@ -3704,63 +3628,26 @@ function renderSoLop(){
   }
 
   $('#tb').innerHTML=html;
-  slBindCommon();
-}
-function slBindCommon(){
   $('#slVCls').onclick=function(){ SL.view='classes'; renderSoLop(); };
   $('#slVSt').onclick=function(){ SL.view='students'; renderSoLop(); };
-  $('#slVLog').onclick=function(){ SL.view='logs'; SL.logsLoaded=false; renderSoLop(); };
-  $('#slReload').onclick=function(){ SL.logsLoaded=false; tabSoLop(true); };
+  if($('#slVPay')) $('#slVPay').onclick=function(){ SL.view='payroll'; renderSoLop(); };
+  if(SL.view==='payroll'){
+    slBindPayrollEvents();
+    return;
+  }
+  $('#slReload').onclick=function(){ tabSoLop(true); };
   $('#slAddSt').onclick=function(){ slStudentModal(null); };
   $('#slAddCls').onclick=function(){ slClassModal(null); };
   $('#slCsv').onclick=slExportCsv;
-  if($('#slKpiTrial')) $('#slKpiTrial').onclick=function(){ SL.view='students'; SL.status='trial_need'; SL.cls='all'; renderSoLop(); };
-  if($('#slKpiUnpaid')) $('#slKpiUnpaid').onclick=function(){ SL.view='students'; SL.status='unpaid'; SL.cls='all'; renderSoLop(); };
   $$('[data-slb]').forEach(function(b){ b.onclick=function(){ SL.branch=b.dataset.slb; renderSoLop(); }; });
   $$('[data-slview]').forEach(function(b){ b.onclick=function(){ SL.cls=b.dataset.slview; SL.view='students'; renderSoLop(); }; });
   $$('[data-sledc]').forEach(function(b){ b.onclick=function(){ var c=SL.classes.filter(function(x){return x.id===b.dataset.sledc;})[0]; if(c) slClassModal(c); }; });
   $$('[data-sleds]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sleds;})[0]; if(s) slStudentModal(s); }; });
   $$('[data-sltr]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sltr;})[0]; if(s) slTransferModal(s); }; });
   $$('[data-sllv]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.sllv;})[0]; if(s) slLeaveModal(s); }; });
-  $$('[data-slpay]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.slpay;})[0]; if(s) slPayModal(s); }; });
-  $$('[data-slmsg]').forEach(function(b){ b.onclick=function(){ var s=SL.students.filter(function(x){return x.id===b.dataset.slmsg;})[0]; if(s) slFeeMsgModal(s); }; });
   if($('#slQ')) $('#slQ').oninput=function(){ SL.q=this.value; renderSoLop(); var el=$('#slQ'); if(el){ el.focus(); el.setSelectionRange(el.value.length,el.value.length); } };
   if($('#slClsF')) $('#slClsF').onchange=function(){ SL.cls=this.value; renderSoLop(); };
   if($('#slStF')) $('#slStF').onchange=function(){ SL.status=this.value; renderSoLop(); };
-}
-function slPayModal(st){
-  var defM=slTargetPaidMonth(st), defAmt=String(st.monthlyFeeApplied||st.originalFee||'').replace(/[^\d]/g,'');
-  modal('<h3>💵 Xác nhận đóng học phí</h3><p>Học viên: <b>'+esc(st.name)+'</b> · Lớp: <b>'+esc(st.className)+'</b></p>'+
-    '<label class="f">Kỳ / Tháng đóng</label><input id="slp_m" value="'+esc(defM)+'">'+
-    '<div class="row" style="gap:8px"><div style="flex:1"><label class="f">Ngày đóng</label><input id="slp_d" value="'+slTodayVN()+'"></div>'+
-    '<div style="flex:1"><label class="f">Số tiền (đ)</label><input id="slp_a" value="'+esc(defAmt)+'"></div></div>',
-    [{label:'Hủy',value:false,cls:'plain'},{label:'✅ Xác nhận đã đóng',value:true}]).then(function(ok){
-    if(!ok) return;
-    api('t_solopMarkPaid',T.pin,st.id,$('#slp_m').value.trim(),$('#slp_d').value.trim(),$('#slp_a').value.trim())
-      .then(function(){ toast('Đã ghi nhận đóng học phí ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
-  });
-}
-function slFeeMsgModal(st){
-  var c=slClassOf(st.className)||{};
-  var fee=Number(String(st.monthlyFeeApplied||st.originalFee||c.monthlyFee||'0').replace(/[^\d]/g,''));
-  var book=0;
-  if(slIsTrial(st) && c.bookFee && c.bookFee.indexOf('+')>=0){
-    book=Number(c.bookFee.split('+')[0].replace(/[^\d]/g,''))*1000;
-  }
-  var total=fee+book;
-  var tm=slTargetPaidMonth(st);
-  var msg='Dạ cô Hannah gửi ba mẹ thông báo học phí '+tm+' của bé '+st.name+' – lớp '+st.className+' ạ:\n'+
-    '• Học phí tháng: '+slFmtMoney(fee)+(st.discountNote?' ('+st.discountNote+')':'')+'\n'+
-    (book?'• Tiền giáo trình (đóng 1 lần): '+slFmtMoney(book)+'\n':'')+
-    '➡️ Tổng cộng: '+slFmtMoney(total)+'\n\n'+
-    'Ba mẹ chuyển khoản giúp cô vào tài khoản:\n'+
-    '• Ngân hàng: ACB\n• Số TK: 48944637\n• Chủ TK: HO KINH DOANH TRAN THI HONG HANH 1992\n'+
-    '• Nội dung: '+st.name+' '+st.className+'\n'+
-    'Chuyển xong ba mẹ gửi ảnh biên lai qua đây giúp cô nha. Cô cảm ơn ba mẹ ạ ❤️';
-  modal('<h3>💬 Tin nhắn báo học phí</h3><textarea id="slm_txt" rows="10" style="width:100%;font-size:14px">'+esc(msg)+'</textarea>',
-    [{label:'Đóng',value:false,cls:'plain'},{label:'📋 Copy tin nhắn',value:true}]).then(function(ok){
-    if(ok) copyText($('#slm_txt').value);
-  });
 }
 function slStudentModal(st){
   var isNew=!st; st=st||{ status:'Đang học', className:(SL.cls!=='all'?SL.cls:(SL.classes[0]?SL.classes[0].name:'')) };
@@ -3785,10 +3672,9 @@ function slStudentModal(st){
       phone:$('#sl_phone').value.trim()||null, parentName:$('#sl_parent').value.trim()||null,
       monthlyFeeApplied:$('#sl_fee').value.trim()||(opt.dataset&&opt.dataset.fee)||null,
       originalFee:st.originalFee||(opt.dataset&&opt.dataset.fee)||null,
-      discountNote:$('#sl_disc').value.trim()||null, note:$('#sl_note').value.trim()||null,
-      trialDate: st.trialDate || ($('#sl_status').value==='Học thử'?slTodayVN():null)
+      discountNote:$('#sl_disc').value.trim()||null, note:$('#sl_note').value.trim()||null
     };
-    api('t_solopSaveStudent',T.pin,payload).then(function(){ toast('Đã lưu & đồng bộ App Bài tập ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
+    api('t_solopSaveStudent',T.pin,payload).then(function(){ toast('Đã lưu học viên ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
   });
 }
 function slLeaveModal(st){
@@ -3798,7 +3684,7 @@ function slLeaveModal(st){
     [{label:'Hủy',value:false,cls:'plain'},{label:'Xác nhận nghỉ',value:true,cls:'warn'}]).then(function(ok){
     if(!ok) return;
     api('t_solopMarkLeave',T.pin,st.id,$('#sl_ldate').value.trim(),$('#sl_lrs').value.trim())
-      .then(function(){ toast('Đã cập nhật nghỉ học & khóa tài khoản BTVN ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
+      .then(function(){ toast('Đã cập nhật nghỉ học ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
   });
 }
 function slTransferModal(st){
@@ -3810,7 +3696,7 @@ function slTransferModal(st){
     if(!ok) return;
     var sel=$('#sl_ncls'), opt=sel.options[sel.selectedIndex]||{};
     api('t_solopTransferClass',T.pin,st.id,sel.value,(opt.dataset&&opt.dataset.br)||'',$('#sl_tnote').value.trim())
-      .then(function(){ toast('Đã chuyển lớp & đồng bộ ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
+      .then(function(){ toast('Đã chuyển lớp ✅'); tabSoLop(true); }).catch(function(e){ toast(e.message||String(e)); });
   });
 }
 function slClassModal(c){
@@ -3840,7 +3726,7 @@ function slClassModal(c){
   });
 }
 function slExportCsv(){
-  var cols=['id','className','branch','name','dob','parentName','phone','status','monthlyFeeApplied','discountNote','paidMonth','lastPaidDate','trialDate','leaveDate','leaveReason','note'];
+  var cols=['id','className','branch','name','dob','parentName','phone','status','monthlyFeeApplied','discountNote','trialDate','leaveDate','leaveReason','note'];
   var lines=['\uFEFF'+cols.join(',')];
   (SL.students||[]).forEach(function(s){
     lines.push(cols.map(function(k){ return '"'+String(s[k]||'').replace(/"/g,'""')+'"'; }).join(','));
@@ -3848,6 +3734,523 @@ function slExportCsv(){
   var a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'}));
   a.download='SoLop_IELTS_Hannah_'+slTodayVN().replace(/\//g,'-')+'.csv';
+  a.click();
+}
+
+
+/* ===== Module Chấm Công & Bảng Lương GV / Trợ Giảng (Sổ Lớp) ===== */
+var SL_PAYROLL_CONFIG = {
+  teachers: [
+    { id: 'minh-thu', name: 'Cô Minh Thư', title: 'Ms. Jenny', rate: 210000, classes: ['KT Movers cũ', 'KT Movers sáng', 'KT Movers chiều'] },
+    { id: 'bich-khuyen', name: 'Cô Bích Khuyên', title: 'Ms. Winnie', rate: 255000, classes: ['Happy Kids 2.6', 'NP Movers', 'NP Flyers'] },
+    { id: 'hoang-hiep', name: 'Thầy Hoàng Hiệp', title: 'Mr. Hiệp', rate: 210000, classes: ['Happy Kids 7.CN'] },
+    { id: 'hoang-anh', name: 'Cô Hoàng Anh', title: 'Ms. Eira', rate: 210000, classes: ['NP Happy Kids', 'Super Kids 7.CN'] }
+  ],
+  tas: [
+    { id: 'kim-chi', name: 'Kim Chi', classes: ['Super Kids 2.4', 'Happy Kids 2.6', 'KT Movers cũ'], defaultRegular: 18, defaultExam: 2 },
+    { id: 'hoai-thuong', name: 'Hoài Thương', classes: ['Happy Kids 2.6', 'KT Movers sáng'], defaultRegular: 10, defaultExam: 1 },
+    { id: 'thanh-nga', name: 'Thanh Nga (cô Nga)', classes: ['NP Happy Kids', 'Happy Kids 7.CN'], conditionalClasses: [{ className: 'Super Kids 7.CN', fromMonth: '2026-12', addRegular: 7, addExam: 1 }], defaultRegular: 11, defaultExam: 1 },
+    { id: 'bao-chau', name: 'Bảo Châu', classes: ['NP Happy Kids', 'NP Movers'], defaultRegular: 10, defaultExam: 2 },
+    { id: 'lam-giang', name: 'Lamgiang', classes: ['NP Flyers'], defaultRegular: 7, defaultExam: 1 }
+  ],
+  teacherRules: {
+    gasPerClass: 50000,
+    maxGas: 200000,
+    attendanceBonus: 100000,
+    minClassesForBonus: 2,
+    defaultSessionsPerClass: 8
+  },
+  taRules: {
+    regularRate: 40000,
+    examRate: 80000,
+    gasPerClass: 40000,
+    maxGas: 160000
+  }
+};
+
+function slGetPayrollLeaves(){
+  try {
+    var raw = localStorage.getItem('sl_payroll_leaves');
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+function slSavePayrollLeaves(leaves){
+  try { localStorage.setItem('sl_payroll_leaves', JSON.stringify(leaves)); } catch(e){}
+}
+function slGetPayrollOverrides(month){
+  try {
+    var raw = localStorage.getItem('sl_payroll_overrides_' + month);
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+function slSavePayrollOverrides(month, ov){
+  try { localStorage.setItem('sl_payroll_overrides_' + month, JSON.stringify(ov)); } catch(e){}
+}
+
+function slCalcPayroll(month){
+  month = month || SL.payMonth || '2026-11';
+  var leaves = slGetPayrollLeaves().filter(function(l){ return (l.date || '').slice(0, 7) === month; });
+  var overrides = slGetPayrollOverrides(month);
+
+  var teachers = SL_PAYROLL_CONFIG.teachers.map(function(t){
+    var assignedClasses = t.classes.slice();
+    var defaultSessions = assignedClasses.length * SL_PAYROLL_CONFIG.teacherRules.defaultSessionsPerClass;
+    var ov = overrides[t.id] || {};
+    var myLeaves = leaves.filter(function(l){ return l.personId === t.id; });
+    var subbedForOthers = leaves.filter(function(l){ return l.subPersonId === t.id; });
+    var leaveCount = myLeaves.length;
+    var subCount = subbedForOthers.length;
+
+    var sessions;
+    if(typeof ov.sessions === 'number') {
+      sessions = ov.sessions;
+    } else {
+      sessions = Math.max(0, defaultSessions - leaveCount + subCount);
+    }
+
+    var sessionSalary = sessions * t.rate;
+    var activeClasses = sessions > 0 ? assignedClasses.length : 0;
+    var gas = Math.min(activeClasses * SL_PAYROLL_CONFIG.teacherRules.gasPerClass, SL_PAYROLL_CONFIG.teacherRules.maxGas);
+    var attendanceEligible = assignedClasses.length >= SL_PAYROLL_CONFIG.teacherRules.minClassesForBonus && leaveCount === 0;
+    var attendanceBonus = attendanceEligible ? SL_PAYROLL_CONFIG.teacherRules.attendanceBonus : 0;
+    var totalSalary = sessionSalary + gas + attendanceBonus;
+
+    var notes = [];
+    myLeaves.forEach(function(l){ notes.push('Nghỉ ' + l.date + (l.className ? ' (' + l.className + ')' : '')); });
+    subbedForOthers.forEach(function(l){ notes.push('Dạy thay ' + l.date + (l.className ? ' (' + l.className + ')' : '')); });
+
+    return {
+      id: t.id, name: t.name, title: t.title, rate: t.rate,
+      assignedClasses: assignedClasses, sessions: sessions, defaultSessions: defaultSessions,
+      sessionSalary: sessionSalary, gas: gas, attendanceEligible: attendanceEligible,
+      leaveCount: leaveCount, subCount: subCount, attendanceBonus: attendanceBonus,
+      totalSalary: totalSalary, notes: notes.join('; '), isOverride: typeof ov.sessions === 'number'
+    };
+  });
+
+  var tas = SL_PAYROLL_CONFIG.tas.map(function(ta){
+    var assignedClasses = ta.classes.slice();
+    var defReg = ta.defaultRegular;
+    var defExam = ta.defaultExam;
+
+    if(ta.conditionalClasses){
+      ta.conditionalClasses.forEach(function(cc){
+        if(month >= cc.fromMonth){
+          if(assignedClasses.indexOf(cc.className) < 0) assignedClasses.push(cc.className);
+          defReg += (cc.addRegular || 0);
+          defExam += (cc.addExam || 0);
+        }
+      });
+    }
+
+    var ov = overrides[ta.id] || {};
+    var myLeaves = leaves.filter(function(l){ return l.personId === ta.id; });
+    var subbedForOthers = leaves.filter(function(l){ return l.subPersonId === ta.id; });
+
+    var regSessions, examSessions;
+    if(typeof ov.regular === 'number'){
+      regSessions = ov.regular;
+    } else {
+      var regLeaves = myLeaves.filter(function(l){ return l.sessionType !== 'exam'; }).length;
+      var regSubs = subbedForOthers.filter(function(l){ return l.sessionType !== 'exam'; }).length;
+      regSessions = Math.max(0, defReg - regLeaves + regSubs);
+    }
+
+    if(typeof ov.exam === 'number'){
+      examSessions = ov.exam;
+    } else {
+      var examLeaves = myLeaves.filter(function(l){ return l.sessionType === 'exam'; }).length;
+      var examSubs = subbedForOthers.filter(function(l){ return l.sessionType === 'exam'; }).length;
+      examSessions = Math.max(0, defExam - examLeaves + examSubs);
+    }
+
+    var regSalary = regSessions * SL_PAYROLL_CONFIG.taRules.regularRate;
+    var examSalary = examSessions * SL_PAYROLL_CONFIG.taRules.examRate;
+    var sessionSalary = regSalary + examSalary;
+    var activeClasses = (regSessions + examSessions > 0) ? assignedClasses.length : 0;
+    var gas = Math.min(activeClasses * SL_PAYROLL_CONFIG.taRules.gasPerClass, SL_PAYROLL_CONFIG.taRules.maxGas);
+    var totalSalary = sessionSalary + gas;
+
+    var notes = [];
+    myLeaves.forEach(function(l){ notes.push('Nghỉ ' + l.date + (l.className ? ' (' + l.className + ')' : '')); });
+    subbedForOthers.forEach(function(l){ notes.push('Trực thay ' + l.date + (l.className ? ' (' + l.className + ')' : '')); });
+
+    return {
+      id: ta.id, name: ta.name, assignedClasses: assignedClasses,
+      regSessions: regSessions, examSessions: examSessions,
+      defReg: defReg, defExam: defExam,
+      sessionSalary: sessionSalary, gas: gas, attendanceBonus: 0,
+      leaveCount: myLeaves.length, subCount: subbedForOthers.length,
+      totalSalary: totalSalary, notes: notes.join('; '),
+      isOverride: (typeof ov.regular === 'number' || typeof ov.exam === 'number')
+    };
+  });
+
+  var totalTeachers = teachers.reduce(function(sum, t){ return sum + t.totalSalary; }, 0);
+  var totalTas = tas.reduce(function(sum, t){ return sum + t.totalSalary; }, 0);
+  var grandTotal = totalTeachers + totalTas;
+
+  return {
+    month: month,
+    teachers: teachers,
+    tas: tas,
+    totalTeachers: totalTeachers,
+    totalTas: totalTas,
+    grandTotal: grandTotal,
+    leaves: leaves
+  };
+}
+
+function slRenderPayrollHtml(){
+  var curM = SL.payMonth || '2026-11';
+  var p = slCalcPayroll(curM);
+  var months = ['2026-10', '2026-11', '2026-12', '2027-01', '2027-02'];
+  var mOptions = months.map(function(m){
+    var parts = m.split('-');
+    var label = 'Tháng ' + parts[1] + '/' + parts[0] + (m === '2026-11' ? ' (Hiện tại)' : '');
+    return '<option value="' + m + '"' + (m === curM ? ' selected' : '') + '>' + label + '</option>';
+  }).join('');
+
+  var h = '<div class="card" style="padding:14px;margin-bottom:14px;background:#FAF8F5;border:1px solid #E2D9CF">'+
+    '<div class="row between" style="flex-wrap:wrap;gap:10px;align-items:center">'+
+      '<div class="row" style="gap:8px;align-items:center">'+
+        '<span style="font-weight:800;font-size:16px">📅 Chọn tháng tính lương:</span>'+
+        '<select id="slPayMonth" style="padding:7px 12px;font-weight:700;border:1px solid #cbd5e1;border-radius:10px;background:#fff;font-size:15px">' + mOptions + '</select>'+
+      '</div>'+
+      '<div class="row" style="flex-wrap:wrap;gap:6px">'+
+        '<button class="btn sm accent" id="slAddLeaveBtn">+ 📝 Báo nghỉ / Thay ca</button>'+
+        '<button class="btn sm plain" id="slCopyZaloBtn">📋 Sao chép tin Zalo</button>'+
+        '<button class="btn sm soft" id="slExportPayCsvBtn">📥 Xuất CSV</button>'+
+        '<button class="btn sm plain" id="slResetPayBtn" title="Khôi phục số ca mặc định">🔄 Đặt lại mặc định</button>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+
+  h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:16px">'+
+    '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:20px;font-weight:800;color:var(--brand)">' + slFmtMoney(p.totalTeachers) + '</div><div class="muted small">👩‍🏫 Tổng Lương GV (4 cô/thầy)</div></div>'+
+    '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:20px;font-weight:800;color:#2563eb">' + slFmtMoney(p.totalTas) + '</div><div class="muted small">🤝 Tổng Lương Trợ Giảng (5 bạn)</div></div>'+
+    '<div class="card" style="padding:12px;margin:0;text-align:center;background:#F0FDF4;border:1px solid #BBF7D0"><div style="font-size:22px;font-weight:800;color:#15803d">' + slFmtMoney(p.grandTotal) + '</div><div class="muted small">💰 Tổng Quỹ Lương Trung Tâm</div></div>'+
+    '<div class="card" style="padding:12px;margin:0;text-align:center"><div style="font-size:20px;font-weight:800;color:#b45309">' + p.leaves.length + ' ca</div><div class="muted small">📝 Buổi nghỉ / Dạy thay</div></div>'+
+  '</div>';
+
+  // Table 1: Teachers
+  h += '<div class="card" style="padding:14px;margin-bottom:16px">'+
+    '<div class="row between" style="margin-bottom:10px;flex-wrap:wrap;gap:8px">'+
+      '<div><h3 style="margin:0;font-size:16px;color:var(--brand)">👩‍🏫 BẢNG LƯƠNG GIÁO VIÊN (' + curM + ')</h3>'+
+      '<div class="muted small">Rate: Cô Khuyên 255k · Cô Thư, Thầy Hiệp, Cô Hoàng Anh 210k · Xăng 50k/lớp (max 200k) · Chuyên cần 100k (≥2 lớp & 0 nghỉ)</div></div>'+
+    '</div>'+
+    '<div style="overflow-x:auto">'+
+    '<table class="sc" style="font-size:13.5px">'+
+      '<thead><tr>'+
+        '<th class="stk" style="text-align:left">Giáo viên</th>'+
+        '<th>Lớp phụ trách</th>'+
+        '<th style="min-width:110px">Số ca dạy</th>'+
+        '<th>Đơn giá/ca</th>'+
+        '<th>Lương ca</th>'+
+        '<th>Trợ cấp xăng</th>'+
+        '<th>Chuyên cần</th>'+
+        '<th>Ghi chú / Nghỉ</th>'+
+        '<th style="text-align:right">Thực nhận</th>'+
+      '</tr></thead>'+
+      '<tbody>';
+  p.teachers.forEach(function(t){
+    var ccBadge = t.attendanceEligible
+      ? '<span class="chip ok" style="font-size:11px">+100.000đ</span>'
+      : (t.assignedClasses.length < 2
+        ? '<span class="chip" style="font-size:11px;color:#64748b;background:#f1f5f9">1 lớp (không xét)</span>'
+        : '<span class="chip bad" style="font-size:11px">Mất CC (nghỉ ' + t.leaveCount + 'b)</span>');
+    var clsChips = t.assignedClasses.map(function(c){ return '<span class="chip" style="font-size:11.5px;padding:2px 6px;margin:1px">' + esc(c) + '</span>'; }).join(' ');
+    h += '<tr>'+
+      '<td class="stk" style="text-align:left"><b>' + esc(t.name) + '</b><br><span class="muted small">' + esc(t.title) + '</span></td>'+
+      '<td>' + clsChips + '</td>'+
+      '<td>'+
+        '<div class="row" style="justify-content:center;gap:4px;align-items:center">'+
+          '<button class="btn sm plain" style="padding:2px 8px;font-size:13px;line-height:1" data-tadj="' + t.id + '" data-delta="-1">–</button>'+
+          '<b style="font-size:15px;min-width:24px;text-align:center">' + t.sessions + '</b>'+
+          '<button class="btn sm plain" style="padding:2px 8px;font-size:13px;line-height:1" data-tadj="' + t.id + '" data-delta="1">+</button>'+
+        '</div>'+
+        (t.isOverride ? '<div style="font-size:10.5px;color:#d97706">Tự chỉnh</div>' : '')+
+      '</td>'+
+      '<td>' + slFmtMoney(t.rate) + '</td>'+
+      '<td>' + slFmtMoney(t.sessionSalary) + '</td>'+
+      '<td>' + slFmtMoney(t.gas) + '<br><span class="muted" style="font-size:10px">(' + t.assignedClasses.length + ' lớp)</span></td>'+
+      '<td>' + ccBadge + '</td>'+
+      '<td style="font-size:11.5px;color:#475569;max-width:160px;white-space:normal">' + (t.notes ? esc(t.notes) : '–') + '</td>'+
+      '<td style="text-align:right;font-weight:800;font-size:15px;color:#15803d">' + slFmtMoney(t.totalSalary) + '</td>'+
+    '</tr>';
+  });
+  h += '<tr style="background:#F7F9FA;font-weight:800">'+
+    '<td class="stk" style="text-align:left">TỔNG CỘNG GIÁO VIÊN</td>'+
+    '<td></td>'+
+    '<td style="text-align:center">' + p.teachers.reduce(function(s,t){return s+t.sessions;}, 0) + ' ca</td>'+
+    '<td></td>'+
+    '<td>' + slFmtMoney(p.teachers.reduce(function(s,t){return s+t.sessionSalary;}, 0)) + '</td>'+
+    '<td>' + slFmtMoney(p.teachers.reduce(function(s,t){return s+t.gas;}, 0)) + '</td>'+
+    '<td>' + slFmtMoney(p.teachers.reduce(function(s,t){return s+t.attendanceBonus;}, 0)) + '</td>'+
+    '<td></td>'+
+    '<td style="text-align:right;color:#15803d;font-size:16px">' + slFmtMoney(p.totalTeachers) + '</td>'+
+  '</tr></tbody></table></div></div>';
+
+  // Table 2: TAs
+  h += '<div class="card" style="padding:14px;margin-bottom:16px">'+
+    '<div class="row between" style="margin-bottom:10px;flex-wrap:wrap;gap:8px">'+
+      '<div><h3 style="margin:0;font-size:16px;color:#2563eb">🤝 BẢNG LƯƠNG TRỢ GIẢNG (' + curM + ')</h3>'+
+      '<div class="muted small">Công ca thường (có mini test): 40.000đ · Ca KT tháng: 80.000đ · Xăng 40k/lớp có đi (max 160k) · Không chuyên cần</div></div>'+
+    '</div>'+
+    '<div style="overflow-x:auto">'+
+    '<table class="sc" style="font-size:13.5px">'+
+      '<thead><tr>'+
+        '<th class="stk" style="text-align:left">Trợ giảng</th>'+
+        '<th>Lớp phân công</th>'+
+        '<th style="min-width:115px">Ca thường (40k)</th>'+
+        '<th style="min-width:115px">Ca KT tháng (80k)</th>'+
+        '<th>Lương ca</th>'+
+        '<th>Trợ cấp xăng</th>'+
+        '<th>Ghi chú / Nghỉ</th>'+
+        '<th style="text-align:right">Thực nhận</th>'+
+      '</tr></thead>'+
+      '<tbody>';
+  p.tas.forEach(function(ta){
+    var clsChips = ta.assignedClasses.map(function(c){
+      var isNewSK = c === 'Super Kids 7.CN';
+      return '<span class="chip" style="font-size:11.5px;padding:2px 6px;margin:1px;' + (isNewSK ? 'background:#FEF3C7;border-color:#F59E0B' : '') + '">' + esc(c) + (isNewSK ? ' ⭐(từ 5/12)' : '') + '</span>';
+    }).join(' ');
+    h += '<tr>'+
+      '<td class="stk" style="text-align:left"><b>' + esc(ta.name) + '</b></td>'+
+      '<td>' + clsChips + '</td>'+
+      '<td>'+
+        '<div class="row" style="justify-content:center;gap:4px;align-items:center">'+
+          '<button class="btn sm plain" style="padding:2px 8px;font-size:13px;line-height:1" data-taadj="' + ta.id + '" data-type="regular" data-delta="-1">–</button>'+
+          '<b style="font-size:15px;min-width:24px;text-align:center">' + ta.regSessions + '</b>'+
+          '<button class="btn sm plain" style="padding:2px 8px;font-size:13px;line-height:1" data-taadj="' + ta.id + '" data-type="regular" data-delta="1">+</button>'+
+        '</div>'+
+      '</td>'+
+      '<td>'+
+        '<div class="row" style="justify-content:center;gap:4px;align-items:center">'+
+          '<button class="btn sm plain" style="padding:2px 8px;font-size:13px;line-height:1" data-taadj="' + ta.id + '" data-type="exam" data-delta="-1">–</button>'+
+          '<b style="font-size:15px;min-width:24px;text-align:center">' + ta.examSessions + '</b>'+
+          '<button class="btn sm plain" style="padding:2px 8px;font-size:13px;line-height:1" data-taadj="' + ta.id + '" data-type="exam" data-delta="1">+</button>'+
+        '</div>'+
+      '</td>'+
+      '<td>' + slFmtMoney(ta.sessionSalary) + '</td>'+
+      '<td>' + slFmtMoney(ta.gas) + '<br><span class="muted" style="font-size:10px">(' + ta.assignedClasses.length + ' lớp)</span></td>'+
+      '<td style="font-size:11.5px;color:#475569;max-width:160px;white-space:normal">' + (ta.notes ? esc(ta.notes) : '–') + '</td>'+
+      '<td style="text-align:right;font-weight:800;font-size:15px;color:#2563eb">' + slFmtMoney(ta.totalSalary) + '</td>'+
+    '</tr>';
+  });
+  h += '<tr style="background:#F7F9FA;font-weight:800">'+
+    '<td class="stk" style="text-align:left">TỔNG CỘNG TRỢ GIẢNG</td>'+
+    '<td></td>'+
+    '<td style="text-align:center">' + p.tas.reduce(function(s,ta){return s+ta.regSessions;}, 0) + ' ca</td>'+
+    '<td style="text-align:center">' + p.tas.reduce(function(s,ta){return s+ta.examSessions;}, 0) + ' ca</td>'+
+    '<td>' + slFmtMoney(p.tas.reduce(function(s,ta){return s+ta.sessionSalary;}, 0)) + '</td>'+
+    '<td>' + slFmtMoney(p.tas.reduce(function(s,ta){return s+ta.gas;}, 0)) + '</td>'+
+    '<td></td>'+
+    '<td style="text-align:right;color:#2563eb;font-size:16px">' + slFmtMoney(p.totalTas) + '</td>'+
+  '</tr></tbody></table></div></div>';
+
+  // Table 3: Leaves
+  h += '<div class="card" style="padding:14px">'+
+    '<div class="row between" style="margin-bottom:10px;flex-wrap:wrap;gap:8px">'+
+      '<div><h3 style="margin:0;font-size:16px">📝 NHẬT KÝ BÁO NGHỈ & DẠY THAY (' + curM + ')</h3>'+
+      '<div class="muted small">Antigravity tự động đối chiếu từ Zalo và form trên web để trừ ca & chuyên cần</div></div>'+
+      '<button class="btn sm accent" id="slAddLeaveBtn2">+ Ghi nhận nghỉ / thay ca</button>'+
+    '</div>';
+  if(!p.leaves.length){
+    h += '<div class="card empty" style="margin:0;padding:20px;text-align:center;color:#64748b">Tháng này chưa ghi nhận buổi nghỉ nào. Tất cả GV đều giữ chuyên cần trọn vẹn! 🎉</div>';
+  } else {
+    h += '<div style="overflow-x:auto"><table class="sc" style="font-size:13.5px"><thead><tr>'+
+      '<th>Ngày</th><th>Người xin nghỉ</th><th>Vai trò</th><th>Lớp</th><th>Buổi</th><th>Người dạy/trực thay</th><th>Lý do / Ghi chú</th><th>Thao tác</th>'+
+    '</tr></thead><tbody>';
+    p.leaves.forEach(function(l, idx){
+      var person = SL_PAYROLL_CONFIG.teachers.concat(SL_PAYROLL_CONFIG.tas).filter(function(x){ return x.id === l.personId; })[0];
+      var subPerson = SL_PAYROLL_CONFIG.teachers.concat(SL_PAYROLL_CONFIG.tas).filter(function(x){ return x.id === l.subPersonId; })[0];
+      var role = SL_PAYROLL_CONFIG.teachers.some(function(x){ return x.id === l.personId; }) ? '<span class="chip brand">Giáo viên</span>' : '<span class="chip">Trợ giảng</span>';
+      h += '<tr>'+
+        '<td><b>' + esc(l.date) + '</b></td>'+
+        '<td><b>' + esc(person ? person.name : (l.personName || l.personId)) + '</b></td>'+
+        '<td>' + role + '</td>'+
+        '<td>' + esc(l.className || '–') + '</td>'+
+        '<td>' + (l.sessionType === 'exam' ? 'Kiểm tra tháng' : 'Ca thường') + '</td>'+
+        '<td>' + (subPerson ? '<b>' + esc(subPerson.name) + '</b>' : (l.subPersonName ? esc(l.subPersonName) : '<span class="muted">Không có</span>')) + '</td>'+
+        '<td style="text-align:left;max-width:200px">' + esc(l.note || '') + '</td>'+
+        '<td><button class="btn sm warn" style="padding:3px 8px;font-size:12px" data-delleave="' + idx + '">🗑️ Xoá</button></td>'+
+      '</tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+  h += '</div>';
+
+  return h;
+}
+
+function slBindPayrollEvents(){
+  var curM = SL.payMonth || '2026-11';
+  var sel = $('#slPayMonth');
+  if(sel) sel.onchange = function(){ SL.payMonth = this.value; renderSoLop(); };
+
+  var openModal = function(){ slPayrollLeaveModal(); };
+  if($('#slAddLeaveBtn')) $('#slAddLeaveBtn').onclick = openModal;
+  if($('#slAddLeaveBtn2')) $('#slAddLeaveBtn2').onclick = openModal;
+
+  if($('#slCopyZaloBtn')) $('#slCopyZaloBtn').onclick = function(){ slCopyPayrollZalo(SL.payMonth); };
+  if($('#slExportPayCsvBtn')) $('#slExportPayCsvBtn').onclick = function(){ slExportPayrollCsv(SL.payMonth); };
+  if($('#slResetPayBtn')) $('#slResetPayBtn').onclick = function(){
+    try { localStorage.removeItem('sl_payroll_overrides_' + (SL.payMonth || '2026-11')); } catch(e){}
+    toast('Đã đặt lại số ca mặc định ✅');
+    renderSoLop();
+  };
+
+  $('[data-tadj]').forEach(function(b){
+    b.onclick = function(){
+      var id = b.dataset.tadj, delta = parseInt(b.dataset.delta, 10);
+      var ov = slGetPayrollOverrides(SL.payMonth || '2026-11');
+      var p = slCalcPayroll(SL.payMonth || '2026-11');
+      var currentT = p.teachers.filter(function(x){ return x.id === id; })[0];
+      var curSessions = currentT ? currentT.sessions : 0;
+      var newSessions = Math.max(0, curSessions + delta);
+      ov[id] = ov[id] || {};
+      ov[id].sessions = newSessions;
+      slSavePayrollOverrides(SL.payMonth || '2026-11', ov);
+      renderSoLop();
+    };
+  });
+
+  $('[data-taadj]').forEach(function(b){
+    b.onclick = function(){
+      var id = b.dataset.taadj, type = b.dataset.type, delta = parseInt(b.dataset.delta, 10);
+      var ov = slGetPayrollOverrides(SL.payMonth || '2026-11');
+      var p = slCalcPayroll(SL.payMonth || '2026-11');
+      var currentTa = p.tas.filter(function(x){ return x.id === id; })[0];
+      ov[id] = ov[id] || {};
+      if(type === 'regular'){
+        var curR = currentTa ? currentTa.regSessions : 0;
+        ov[id].regular = Math.max(0, curR + delta);
+      } else {
+        var curE = currentTa ? currentTa.examSessions : 0;
+        ov[id].exam = Math.max(0, curE + delta);
+      }
+      slSavePayrollOverrides(SL.payMonth || '2026-11', ov);
+      renderSoLop();
+    };
+  });
+
+  $('[data-delleave]').forEach(function(b){
+    b.onclick = function(){
+      var idx = parseInt(b.dataset.delleave, 10);
+      var leaves = slGetPayrollLeaves();
+      if(confirm('Chị có chắc muốn xoá ghi nhận buổi nghỉ này không?')){
+        leaves.splice(idx, 1);
+        slSavePayrollLeaves(leaves);
+        toast('Đã xoá ghi nhận nghỉ ✅');
+        renderSoLop();
+      }
+    };
+  });
+}
+
+function slPayrollLeaveModal(){
+  var curDate = new Date().toISOString().slice(0, 10);
+  var staffList = SL_PAYROLL_CONFIG.teachers.map(function(t){ return { id: t.id, name: t.name + ' (' + t.title + ') – Giáo viên' }; })
+    .concat(SL_PAYROLL_CONFIG.tas.map(function(ta){ return { id: ta.id, name: ta.name + ' – Trợ giảng' }; }));
+
+  var staffOpts = staffList.map(function(s){ return '<option value="' + esc(s.id) + '">' + esc(s.name) + '</option>'; }).join('');
+  var subOpts = '<option value="">(Không có người dạy thay / tự hủy ca)</option>' + staffList.map(function(s){ return '<option value="' + esc(s.id) + '">' + esc(s.name) + '</option>'; }).join('');
+  var clsOpts = (SL.classes || []).map(function(c){ return '<option value="' + esc(c.name) + '">' + esc(c.name) + (c.branch ? ' (' + esc(c.branch) + ')' : '') + '</option>'; }).join('');
+
+  var body = '<h3>📝 Ghi nhận Báo Nghỉ / Dạy Thay</h3>' +
+    '<label class="f">Người xin nghỉ *</label><select id="sl_pl_person">' + staffOpts + '</select>' +
+    '<div class="row" style="gap:8px;margin-top:8px">' +
+      '<div style="flex:1"><label class="f">Lớp xin nghỉ *</label><select id="sl_pl_class">' + clsOpts + '</select></div>' +
+      '<div style="flex:1"><label class="f">Loại buổi</label><select id="sl_pl_type"><option value="regular">Ca học thường</option><option value="exam">Buổi kiểm tra tháng</option></select></div>' +
+    '</div>' +
+    '<div class="row" style="gap:8px;margin-top:8px">' +
+      '<div style="flex:1"><label class="f">Ngày nghỉ (YYYY-MM-DD) *</label><input type="date" id="sl_pl_date" value="' + curDate + '"></div>' +
+      '<div style="flex:1"><label class="f">Người dạy/trực thay (nếu có)</label><select id="sl_pl_sub">' + subOpts + '</select></div>' +
+    '</div>' +
+    '<label class="f" style="margin-top:8px">Lý do / Ghi chú</label><input type="text" id="sl_pl_note" placeholder="VD: Cô bận việc gia đình, bé bị sốt...">';
+
+  modal(body, [
+    { label: 'Huỷ', value: false },
+    { label: '💾 Lưu ghi nhận', value: true, primary: true }
+  ]).then(function(ok){
+    if(!ok) return;
+    var personId = $('#sl_pl_person').value;
+    var className = $('#sl_pl_class').value;
+    var sessionType = $('#sl_pl_type').value;
+    var date = $('#sl_pl_date').value;
+    var subPersonId = $('#sl_pl_sub').value;
+    var note = $('#sl_pl_note').value.trim();
+
+    if(!date){ toast('Vui lòng chọn ngày nghỉ.'); return; }
+
+    var leaves = slGetPayrollLeaves();
+    leaves.push({
+      personId: personId,
+      className: className,
+      sessionType: sessionType,
+      date: date,
+      subPersonId: subPersonId || null,
+      note: note,
+      createdAt: new Date().toISOString()
+    });
+    slSavePayrollLeaves(leaves);
+    toast('Đã ghi nhận buổi nghỉ thành công! ✅');
+    renderSoLop();
+  });
+}
+
+function slCopyPayrollZalo(month){
+  month = month || SL.payMonth || '2026-11';
+  var p = slCalcPayroll(month);
+  var parts = month.split('-');
+  var text = '📊 BÁO CÁO BẢNG LƯƠNG TRUNG TÂM IELTS HANNAH – THÁNG ' + parts[1] + '/' + parts[0] + '\n\n' +
+    '👩‍🏫 1. BẢNG LƯƠNG GIÁO VIÊN:\n';
+  p.teachers.forEach(function(t){
+    var ccText = t.attendanceEligible ? ' + Chuyên cần 100k' : (t.leaveCount > 0 ? ' (Nghỉ ' + t.leaveCount + 'b: Mất CC)' : '');
+    text += '• ' + t.name + ' (' + t.title + '): ' + t.sessions + ' ca × ' + (t.rate/1000) + 'k = ' + slFmtMoney(t.sessionSalary) +
+      ' + Xăng ' + slFmtMoney(t.gas) + ccText + ' ➔ ' + slFmtMoney(t.totalSalary) + (t.notes ? ' [' + t.notes + ']' : '') + '\n';
+  });
+  text += '➔ Tổng GV: ' + slFmtMoney(p.totalTeachers) + '\n\n' +
+    '🤝 2. BẢNG LƯƠNG TRỢ GIẢNG:\n';
+  p.tas.forEach(function(ta){
+    text += '• ' + ta.name + ': Thường ' + ta.regSessions + ' ca (' + (ta.regSessions*40) + 'k) + KT ' + ta.examSessions + ' ca (' + (ta.examSessions*80) + 'k) + Xăng ' + slFmtMoney(ta.gas) +
+      ' ➔ ' + slFmtMoney(ta.totalSalary) + (ta.notes ? ' [' + ta.notes + ']' : '') + '\n';
+  });
+  text += '➔ Tổng TG: ' + slFmtMoney(p.totalTas) + '\n\n' +
+    '💰 TỔNG CỘNG QUỸ LƯƠNG: ' + slFmtMoney(p.grandTotal);
+
+  if(typeof copyText === 'function'){
+    copyText(text);
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    toast('Đã sao chép bảng lương vào bộ nhớ tạm! 📋');
+  }
+}
+
+function slExportPayrollCsv(month){
+  month = month || SL.payMonth || '2026-11';
+  var p = slCalcPayroll(month);
+  var lines = ['\uFEFFLoại nhân sự,Họ và tên,Vai trò,Lớp phụ trách,Số ca thường,Số ca KT/Tổng ca,Lương ca (VNĐ),Trợ cấp xăng (VNĐ),Chuyên cần (VNĐ),Thực nhận (VNĐ),Ghi chú'];
+
+  p.teachers.forEach(function(t){
+    lines.push(['"Giáo viên"', '"' + t.name + '"', '"' + t.title + '"', '"' + t.assignedClasses.join('; ') + '"', '""', t.sessions, t.sessionSalary, t.gas, t.attendanceBonus, t.totalSalary, '"' + (t.notes || '') + '"'].join(','));
+  });
+
+  p.tas.forEach(function(ta){
+    lines.push(['"Trợ giảng"', '"' + ta.name + '"', '"Trợ giảng"', '"' + ta.assignedClasses.join('; ') + '"', ta.regSessions, ta.examSessions, ta.sessionSalary, ta.gas, 0, ta.totalSalary, '"' + (ta.notes || '') + '"'].join(','));
+  });
+
+  lines.push(['"TỔNG CỘNG"', '""', '""', '""', '""', '""', '""', '""', '""', p.grandTotal, '""'].join(','));
+
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' }));
+  a.download = 'BangLuong_IELTS_Hannah_' + month + '.csv';
   a.click();
 }
 
