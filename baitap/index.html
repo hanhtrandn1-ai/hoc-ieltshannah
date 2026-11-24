@@ -4101,7 +4101,7 @@ function slBindPayrollEvents(){
     renderSoLop();
   };
 
-  $('[data-tadj]').forEach(function(b){
+  $$('[data-tadj]').forEach(function(b){
     b.onclick = function(){
       var id = b.dataset.tadj, delta = parseInt(b.dataset.delta, 10);
       var ov = slGetPayrollOverrides(SL.payMonth || '2026-11');
@@ -4116,7 +4116,7 @@ function slBindPayrollEvents(){
     };
   });
 
-  $('[data-taadj]').forEach(function(b){
+  $$('[data-taadj]').forEach(function(b){
     b.onclick = function(){
       var id = b.dataset.taadj, type = b.dataset.type, delta = parseInt(b.dataset.delta, 10);
       var ov = slGetPayrollOverrides(SL.payMonth || '2026-11');
@@ -4135,7 +4135,7 @@ function slBindPayrollEvents(){
     };
   });
 
-  $('[data-delleave]').forEach(function(b){
+  $$('[data-delleave]').forEach(function(b){
     b.onclick = function(){
       var idx = parseInt(b.dataset.delleave, 10);
       var leaves = slGetPayrollLeaves();
