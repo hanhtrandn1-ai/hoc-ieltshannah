@@ -1481,7 +1481,7 @@ function kidsGameVocab(allCards, scene, onDone){
       '<div class="kv-chars"><button class="kv-char on" data-c="👧"><span class="av">👧</span>Bé gái</button><button class="kv-char" data-c="👦"><span class="av">👦</span>Bé trai</button></div>'+
       '<button class="btn lg" id="kvgo" style="width:100%">Bắt đầu đi tìm →</button></div></div></div>';
     $('#kvx').onclick=function(){ L.innerHTML=''; };
-    $('.kv-char',L).forEach(function(b){ b.onclick=function(){ hero=b.dataset.c; $('.kv-char',L).forEach(function(x){ x.classList.toggle('on',x===b); }); }; });
+    $$('.kv-char',L).forEach(function(b){ b.onclick=function(){ hero=b.dataset.c; $$('.kv-char',L).forEach(function(x){ x.classList.toggle('on',x===b); }); }; });
     $('#kvgo').onclick=start;
   }
   function start(){
@@ -1521,8 +1521,8 @@ function kidsGameVocab(allCards, scene, onDone){
       for(var j=0;j<items.length;j++){ if(j!==tidx && !items[j].found && Math.hypot(hx-items[j].x, hy-items[j].y)<=10){ playChime(false); toast('Đây là '+items[j].w+' – con tìm '+target.w+' nhé!'); break; } }
     }
     arena.onclick=function(e){ var r=arena.getBoundingClientRect(); moveTo((e.clientX-r.left)/r.width*100, (e.clientY-r.top)/r.height*100); };
-    $('.kv-item',arena).forEach(function(el,idx){ el.onclick=function(e){ e.stopPropagation(); moveTo(items[idx].x, items[idx].y); }; });
-    $('[data-d]',L).forEach(function(b){ b.onclick=function(){ var d=b.dataset.d; moveTo(hx+(d==='r'?12:d==='l'?-12:0), hy+(d==='d'?12:d==='u'?-12:0)); }; });
+    $$('.kv-item',arena).forEach(function(el,idx){ el.onclick=function(e){ e.stopPropagation(); moveTo(items[idx].x, items[idx].y); }; });
+    $$('[data-d]',L).forEach(function(b){ b.onclick=function(){ var d=b.dataset.d; moveTo(hx+(d==='r'?12:d==='l'?-12:0), hy+(d==='d'?12:d==='u'?-12:0)); }; });
     var onKey=function(e){ if(e.key==='ArrowUp'||e.key==='w') moveTo(hx,hy-10); else if(e.key==='ArrowDown'||e.key==='s') moveTo(hx,hy+10); else if(e.key==='ArrowLeft'||e.key==='a') moveTo(hx-10,hy); else if(e.key==='ArrowRight'||e.key==='d') moveTo(hx+10,hy); };
     document.addEventListener('keydown', onKey);
     iv=setInterval(function(){ $('#kvtm').textContent='⏱ '+fmt(Date.now()-t0); }, 250);
@@ -1658,9 +1658,9 @@ function renderHome(){
   if(S.tab==='prog') renderProgress($('#progbox'));
   if(S.tab==='fc') renderFC($('#fcbox'));
   if(S.tab==='todo'){ if(kids) renderKidsGamesHub($('#fcmini')); else renderFCMini($('#fcmini')); }
-  $('.tabs button').forEach(function(b){ b.onclick=function(){ S.tab=b.dataset.t; renderHome(); }; });
+  $$('.tabs button').forEach(function(b){ b.onclick=function(){ S.tab=b.dataset.t; renderHome(); }; });
   $('#sw').onclick=function(){ store('hw_student',null); loginCode(); };
-  $('[data-open]').forEach(function(b){ b.onclick=function(){ openAssignment(b.dataset.open); }; });
+  $$('[data-open]').forEach(function(b){ b.onclick=function(){ openAssignment(b.dataset.open); }; });
 }
 
 /* Bài chỉ gồm nhiệm vụ trên web khác (vd Thực Chiến L&R): làm đủ phần = đã xong, không cần bấm nộp */
@@ -1805,7 +1805,7 @@ function mountSmfMatchGame(vocab, box){
   box.innerHTML='<div class="card"><div class="row between" style="margin-bottom:10px"><b>🧩 Trò chơi 2: Nối từ</b><span class="chip brand" id="nmStat">Đã nối: 0/'+list.length+'</span></div>'+
     '<p class="muted small" style="margin-top:0">Chạm thẻ tiếng Anh (trắng) và thẻ nghĩa tiếng Việt (kem) khớp nhau để xóa bảng.</p>'+
     '<div class="nm-board" id="nmBoard">'+cards.map(function(c,ci){ return '<button type="button" class="nm-card '+c.type+'" data-ci="'+ci+'">'+esc(c.txt)+'</button>'; }).join('')+'</div></div>';
-  $('.nm-card',box).forEach(function(btn){ btn.onclick=function(){
+  $$('.nm-card',box).forEach(function(btn){ btn.onclick=function(){
     var ci=+btn.dataset.ci, c=cards[ci]; if(btn.classList.contains('done')) return; if(c.type==='en') sayTTS(c.txt);
     if(!sel){ sel={ci:ci, btn:btn, c:c}; btn.classList.add('sel'); return; }
     if(sel.ci===ci){ btn.classList.remove('sel'); sel=null; return; }
@@ -1825,7 +1825,7 @@ function mountSmfBridgeGame(sentences, box){
         '<div class="br-stage"><div class="qt" style="margin-bottom:8px">🦜 '+esc(it.vi)+'</div>'+
         '<div class="br-planks">'+(picked.length?picked.map(function(p){ return '<span class="br-plank">'+esc(p.w)+'</span>'; }).join(''):'<span class="muted small">Chạm đúng thứ tự từng từ để lát ván cầu…</span>')+'</div>'+
         '<div class="bank" style="position:static;margin-top:10px">'+pool.map(function(p,pi){ return '<button type="button" class="wchip'+(used[pi]?' used':'')+'" data-pi="'+pi+'"'+(used[pi]?' disabled':'')+'>'+esc(p.w)+'</button>'; }).join('')+'</div></div></div>';
-      $('.wchip[data-pi]',box).forEach(function(b){ b.onclick=function(){
+      $$('.wchip[data-pi]',box).forEach(function(b){ b.onclick=function(){
         var pi=+b.dataset.pi, p=pool[pi], need=targetWords[picked.length];
         if(p.w===need){ playChime(true); used[pi]=1; picked.push(p); if(picked.length>=targetWords.length){ score+=15; k++; setTimeout(renderStep, 300); } else draw(); }
         else { playChime(false); hearts--; if(hearts<=0){ modal('<h3>💔 Rớt cầu rồi!</h3><p>Con đã chọn sai thứ tự 3 lần. Làm lại từ đầu để nhớ mẫu câu nhé!</p>',[{label:'Chơi lại từ đầu →',value:true}]).then(function(){ mountSmfBridgeGame(sentences, box); }); } else { toast('Chưa đúng thứ tự! Còn '+hearts+' ❤️'); } }
@@ -1885,7 +1885,7 @@ function renderSmfWorkspace(){
   });
   wHtml+='<div class="submitbar"><div class="in"><div class="prog"><i id="pg"></i></div><button class="btn lg accent" id="submit">Nộp bài</button></div></div>';
   main.innerHTML=wHtml;
-  $('[data-lk]',main).forEach(function(c){ c.onchange=function(){ W.linksDone[+c.dataset.lk]=c.checked; updateProgress(); }; });
+  $$('[data-lk]',main).forEach(function(c){ c.onchange=function(){ W.linksDone[+c.dataset.lk]=c.checked; updateProgress(); }; });
   a.activities.forEach(function(act,i){
     var body=$('#act'+i+' .actbody');
     var R={mcq:mountMcq,match:mountMatch,fill:mountFill,flying:mountFlying,speaking:mountSpeaking,writing:mountWriting,say:mountSay,typein:mountTypein,order:mountOrder,photo:mountPhoto,dict:mountDict,ext99:mountExt,extee:mountExt,extlr:mountExt}[act.type];
@@ -1918,7 +1918,7 @@ function renderWork(){
   html += '<div class="submitbar"><div class="in"><div class="prog"><i id="pg"></i></div><button class="btn lg accent" id="submit">Nộp bài</button></div></div>';
   $('#app').innerHTML = (isKidsClass()?'<div class="kids-work">':'')+html+(isKidsClass()?'</div>':'');
   $('#bk').onclick=function(){ stopAllGames(); if(S.student) store('hw_open_'+S.student.id, null); renderHome(); };
-  $('[data-lk]').forEach(function(c){ c.onchange=function(){ W.linksDone[+c.dataset.lk]=c.checked; updateProgress(); }; });
+  $$('[data-lk]').forEach(function(c){ c.onchange=function(){ W.linksDone[+c.dataset.lk]=c.checked; updateProgress(); }; });
   a.activities.forEach(function(act,i){
     var body=$('#act'+i+' .actbody');
     var R={mcq:(isKidsClass()?mountKidsMcqGame:mountMcq),match:mountMatch,fill:mountFill,flying:mountFlying,speaking:mountSpeaking,writing:mountWriting,say:mountSay,typein:mountTypein,order:(isKidsClass()?mountKidsOrderGame:mountOrder),photo:mountPhoto,dict:mountDict,ext99:mountExt,extee:mountExt,extlr:mountExt}[act.type];
@@ -1975,7 +1975,7 @@ function mountKidsMcqGame(act,i,el){
       '<div class="sky3-lanes">'+it.options.map(function(o,j){
         return '<button type="button" class="sky3-gate'+(W.answers[i][k]===j?' ok':'')+'" data-j="'+j+'">'+String.fromCharCode(65+j)+'. '+rich(o)+'</button>';
       }).join('')+'</div><div class="sky3-bird">🦜💨</div></div>';
-    $('.sky3-gate',el).forEach(function(b){ b.onclick=function(){
+    $$('.sky3-gate',el).forEach(function(b){ b.onclick=function(){
       var j=+b.dataset.j; W.answers[i][k]=j; updateProgress();
       var ok = (it.ans!=null) ? (j===it.ans) : true;
       if(ok){ pts+=10; playChime(true); b.classList.add('ok'); }
@@ -1996,8 +1996,8 @@ function mountKidsOrderGame(act,i,el){
           '<div class="br-planks">'+(st.pick[k].length?st.pick[k].map(function(x,p){ return '<button type="button" class="br-plank" data-k="'+k+'" data-p="'+p+'">'+esc(it.words[x])+'</button>'; }).join(''):'<span class="muted small">Chạm từ để lát ván cầu…</span>')+'</div>'+
           '<div class="bank" style="position:static;margin-top:8px">'+it.words.map(function(w,x){ return '<button type="button" class="wchip'+(used[x]?' used':'')+'" data-k="'+k+'" data-x="'+x+'"'+(used[x]?' disabled':'')+'>'+esc(w)+'</button>'; }).join('')+'</div></div>';
       }).join('');
-    $('.wchip[data-x]',el).forEach(function(b){ b.onclick=function(){ var k=+b.dataset.k; st.pick[k].push(+b.dataset.x); playChime(true); sync(); render(); }; });
-    $('.br-plank[data-p]',el).forEach(function(b){ b.onclick=function(){ var k=+b.dataset.k; st.pick[k].splice(+b.dataset.p,1); sync(); render(); }; });
+    $$('.wchip[data-x]',el).forEach(function(b){ b.onclick=function(){ var k=+b.dataset.k; st.pick[k].push(+b.dataset.x); playChime(true); sync(); render(); }; });
+    $$('.br-plank[data-p]',el).forEach(function(b){ b.onclick=function(){ var k=+b.dataset.k; st.pick[k].splice(+b.dataset.p,1); sync(); render(); }; });
   }
   function sync(){ W.answers[i]=act.items.map(function(it,k){ return st.pick[k].map(function(x){ return it.words[x]; }).join(' '); }); updateProgress(); }
   render();
