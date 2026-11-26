@@ -535,6 +535,32 @@ details.card>summary{cursor:pointer;list-style:none}details.card[open]>summary{m
 .br-stage{background:linear-gradient(180deg,#E0F2FE 0%,#F0F9FF 65%,#78350F 65%,#451A03 100%);border-radius:16px;padding:12px;margin-bottom:10px;border:2px solid #BAE6FD}
 .br-planks{display:flex;flex-wrap:wrap;gap:6px;min-height:44px;align-items:center;padding:8px;background:rgba(255,255,255,.85);border-radius:12px;border:2px dashed #F59E0B}
 .br-plank{background:linear-gradient(180deg,#FBBF24,#D97706);color:#fff;border:0;border-radius:8px;padding:7px 12px;font-weight:800;cursor:pointer;box-shadow:0 3px 0 #92400E}
+.smf-shell{display:grid;grid-template-columns:268px 1fr;gap:16px;align-items:start;max-width:1160px;margin:0 auto}
+.smf-side{background:#fff;border:1.5px solid var(--line);border-radius:20px;padding:14px;box-shadow:var(--shadow);position:sticky;top:12px}
+.smf-brand{display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1.5px solid var(--line);margin-bottom:10px}
+.smf-user{background:#F7F1EA;border-radius:12px;padding:10px 12px;margin-bottom:12px}
+.smf-user b{display:block;font-size:15px;color:var(--ink)}
+.smf-user small{display:block;font-size:12.5px;color:var(--brand);font-weight:700}
+.smf-sec{font-size:12.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:8px 0 6px}
+.smf-btn{width:100%;border:0;background:transparent;text-align:left;padding:9px 11px;border-radius:11px;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--ink);margin-bottom:3px;transition:background .15s}
+.smf-btn:hover{background:#F7F1EA}
+.smf-btn.on{background:#E6F7F4;color:var(--brand)}
+.smf-sub{padding-left:14px;margin:2px 0 6px;border-left:2px solid #E5D9CA}
+.smf-main{min-width:0}
+@media (max-width:820px){.smf-shell{grid-template-columns:1fr}.smf-side{position:static}}
+.bb-stage{position:relative;height:380px;border-radius:18px;overflow:hidden;background:linear-gradient(180deg,#0E5A78 0%,#083D56 78%,#B8864B 78%,#8C5E2A 100%);box-shadow:0 10px 26px rgba(0,0,0,.18);user-select:none;touch-action:manipulation}
+.bb-bub{position:absolute;border-radius:50%;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.55),rgba(139,92,246,.38) 65%,rgba(56,189,248,.55));border:2px solid rgba(255,255,255,.65);color:#fff;font-weight:800;font-size:15px;display:grid;place-items:center;text-align:center;padding:8px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25);transition:transform .15s}
+.bb-bub:active{transform:scale(.92)}
+.bb-bub.pop{animation:pop .28s forwards}
+.bb-bub.bad{animation:shake .3s;border-color:#EF4444;background:rgba(239,68,68,.45)}
+.nm-board{background:#0D9488;border-radius:18px;padding:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;box-shadow:0 10px 24px rgba(13,148,136,.22)}
+@media (max-width:540px){.nm-board{grid-template-columns:repeat(2,1fr)}}
+.nm-card{border-radius:14px;padding:16px 10px;font-weight:800;font-size:15px;text-align:center;cursor:pointer;min-height:76px;display:grid;place-items:center;border:2.5px solid transparent;transition:transform .15s,opacity .25s;box-shadow:0 4px 0 rgba(0,0,0,.12)}
+.nm-card.en{background:#fff;color:#0F766E}
+.nm-card.vi{background:#FEF6E4;color:#92400E}
+.nm-card.sel{border-color:#F59E0B;transform:scale(1.04);box-shadow:0 0 0 4px rgba(245,158,11,.35)}
+.nm-card.done{opacity:0;pointer-events:none;transform:scale(.85)}
+.nm-card.bad{animation:shake .3s;border-color:#EF4444}
 </style>
 </head>
 <body>
@@ -1286,6 +1312,12 @@ function isKidsClass(){
   if(lvs.some(function(l){ return l==='superkids' || l==='happykids'; })) return true;
   return /super\s*kids|happy\s*kids/i.test(S.student.group||'');
 }
+function isSmfClass(){
+  if(!S.student) return false;
+  var lvs = S.student.levels || [S.student.level];
+  if(lvs.some(function(l){ return l==='starters' || l==='movers' || l==='flyers'; })) return true;
+  return /starters|movers|flyers/i.test(S.student.group||'');
+}
 var SYLLABUS_PHONICS = {
   1: { topic:'Colors / Numbers & Actions', sounds:['s','a','t'], words:['sun','spider','snail','ant','arrow','apple','at','sat'] },
   2: { topic:'Farm Animals / Action Words 2', sounds:['i','p','n'], words:['it','sit','pit','pat','tip','tap','tin','ant','nip','pan'] },
@@ -1700,7 +1732,171 @@ function openAssignment(id){
   }).catch(function(e){ showError(e, renderHome); });
 }
 
+var SMF_VIEW = 'knowledge';
+function parseSmfLesson(a){
+  var desc = String((a&&a.description)||'');
+  var vocab = [], seen = {};
+  var re = /([A-Za-z][A-Za-z0-9\s'\/-]{1,32}?)\s*\(([^()]{1,42})\)/g, m;
+  while((m=re.exec(desc))!==null){
+    var en=m[1].trim().replace(/^[\s,.:;–-]+|[\s,.:;–-]+$/g,''), vi=m[2].trim();
+    if(!en || !vi) continue;
+    if(/purpose|thời gian|buổi|question|ôn lại|chỉ mục đích/i.test(en+' '+vi)) continue;
+    if(en.split(/\s+/).length>5) continue;
+    var key=en.toLowerCase();
+    if(!seen[key]){ seen[key]=1; vocab.push({en:en, vi:vi}); }
+  }
+  if(vocab.length<4 && S.fc && Array.isArray(S.fc.cards)){
+    S.fc.cards.forEach(function(c){ if(c.w && c.vi && !seen[c.w.toLowerCase()]){ seen[c.w.toLowerCase()]=1; vocab.push({en:c.w, vi:c.vi}); } });
+  }
+  var sentences = [];
+  (a&&a.activities||[]).forEach(function(act){ if(act.type==='order' && Array.isArray(act.items)){ act.items.forEach(function(it){ if(it.vi && Array.isArray(it.words)) sentences.push({vi:it.vi, words:it.words.slice()}); }); } });
+  if(!sentences.length){
+    var lines = desc.split(/\n+/);
+    for(var i=0;i<lines.length;i++){
+      var qm = lines[i].match(/Q\d+\.?\s*[^(]+\(([^)]+)\)/i), nx = lines[i+1]||'', am = nx.match(/^[→>-]\s*(.+)$/);
+      if(qm && am){ var ws = am[1].trim().replace(/[.!?]+$/,'').split(/\s+/); if(ws.length>=3 && ws.length<=12) sentences.push({ vi:'Dịch/Ghép câu trả lời cho: '+qm[1].trim(), words:ws }); }
+    }
+  }
+  if(!sentences.length){
+    sentences = [
+      {vi:'Tôi thường đi đến công viên với các bạn của tôi.', words:['I','often','go','to','the','park','with','my','friends.']},
+      {vi:'Thứ Bảy tuần trước tôi đã đi đá bóng.', words:['I','went','to','play','football','last','Saturday.']},
+      {vi:'Hôm qua tôi đã rất vui.', words:['I','was','very','happy','yesterday.']}
+    ];
+  }
+  var sm = String((a&&a.title)||'').match(/(\d+\.\d+)/);
+  return { session: sm?('buổi '+sm[1]):'hôm nay', vocab:vocab, sentences:sentences };
+}
+function mountSmfBubbleGame(vocab, box){
+  if(!vocab.length){ box.innerHTML='<div class="card empty">Chưa có danh sách từ vựng trong phần Kiến thức trên lớp để chơi Bắn bong bóng.</div>'; return; }
+  var total = Math.min(10, Math.max(5, vocab.length));
+  var queue = shuffle(vocab); while(queue.length<total) queue=queue.concat(shuffle(vocab)); queue=queue.slice(0,total);
+  var idx=0, hearts=3, score=0, iv=null, bubs=[];
+  function startRound(){
+    if(idx>=total){ clearInterval(iv); box.innerHTML='<div class="card" style="text-align:center"><div style="font-size:48px">🫧🎉</div><h3>Hoàn thành Trò chơi 1: Bắn bong bóng!</h3><p>Con đạt <b>'+score+'</b> điểm ('+total+' lượt từ vựng).</p><button class="btn" id="bbRe">Chơi lại →</button></div>'; $('#bbRe',box).onclick=function(){ mountSmfBubbleGame(vocab, box); }; return; }
+    var target=queue[idx], choices=shuffle(vocab.filter(function(v){ return v.en.toLowerCase()!==target.en.toLowerCase(); })).slice(0,4);
+    choices.push(target); choices=shuffle(choices);
+    box.innerHTML='<div class="card"><div class="row between" style="margin-bottom:8px"><b>🫧 Trò chơi 1: Bắn bong bóng</b><span>'+('❤️'.repeat(hearts))+' · Lượt '+(idx+1)+'/'+total+' · 🏆 '+score+'</span></div>'+
+      '<div style="text-align:center;margin-bottom:10px"><div class="small muted">CHẠM BONG BÓNG CÓ TỪ KHỚP VỚI NGHĨA</div><div style="font-size:24px;font-weight:800;color:var(--brand)">'+esc(target.vi)+'</div></div>'+
+      '<div class="bb-stage" id="bbStage"></div></div>';
+    var st=$('#bbStage',box), Wd=st.clientWidth||520;
+    bubs=choices.map(function(c,bi){
+      var sz=Math.max(76, Math.min(118, 66+c.en.length*4)), el=document.createElement('div');
+      el.className='bb-bub'; el.textContent=c.en; el.style.width=sz+'px'; el.style.height=sz+'px';
+      var x=12+(bi*(Wd-sz-24)/Math.max(1,choices.length-1)), y=250+Math.random()*50, vy=0.45+Math.random()*0.45;
+      el.style.left=x+'px'; el.style.top=y+'px';
+      el.onclick=function(){
+        if(c.en===target.en){ clearInterval(iv); el.classList.add('pop'); playChime(true); sayTTS(target.en); score+=10; idx++; setTimeout(startRound, 320); }
+        else { el.classList.add('bad'); playChime(false); hearts--; if(hearts<=0){ clearInterval(iv); modal('<h3>💔 Hết tim rồi!</h3><p>Con đã sai 3 lần. Hãy chơi lại từ đầu để nhớ thật chắc từ vựng nhé!</p>',[{label:'Chơi lại từ đầu →',value:true}]).then(function(){ mountSmfBubbleGame(vocab, box); }); } else { toast('Sai rồi! Còn '+hearts+' ❤️'); startRound(); } }
+      };
+      st.appendChild(el); return { el:el, y:y, vy:vy };
+    });
+    clearInterval(iv);
+    iv=setInterval(function(){ if(!document.body.contains(st)){ clearInterval(iv); return; } bubs.forEach(function(b){ b.y-=b.vy; if(b.y<-90) b.y=310; b.el.style.top=b.y+'px'; }); }, 30);
+  }
+  startRound();
+}
+function mountSmfMatchGame(vocab, box){
+  if(vocab.length<2){ box.innerHTML='<div class="card empty">Chưa đủ từ vựng để chơi Nối từ.</div>'; return; }
+  var list=shuffle(vocab).slice(0, Math.min(6, vocab.length)), cards=[];
+  list.forEach(function(v,idx){ cards.push({id:idx,type:'en',txt:v.en}); cards.push({id:idx,type:'vi',txt:v.vi}); });
+  cards=shuffle(cards);
+  var sel=null, matched=0, t0=Date.now(), score=0;
+  box.innerHTML='<div class="card"><div class="row between" style="margin-bottom:10px"><b>🧩 Trò chơi 2: Nối từ</b><span class="chip brand" id="nmStat">Đã nối: 0/'+list.length+'</span></div>'+
+    '<p class="muted small" style="margin-top:0">Chạm thẻ tiếng Anh (trắng) và thẻ nghĩa tiếng Việt (kem) khớp nhau để xóa bảng.</p>'+
+    '<div class="nm-board" id="nmBoard">'+cards.map(function(c,ci){ return '<button type="button" class="nm-card '+c.type+'" data-ci="'+ci+'">'+esc(c.txt)+'</button>'; }).join('')+'</div></div>';
+  $('.nm-card',box).forEach(function(btn){ btn.onclick=function(){
+    var ci=+btn.dataset.ci, c=cards[ci]; if(btn.classList.contains('done')) return; if(c.type==='en') sayTTS(c.txt);
+    if(!sel){ sel={ci:ci, btn:btn, c:c}; btn.classList.add('sel'); return; }
+    if(sel.ci===ci){ btn.classList.remove('sel'); sel=null; return; }
+    if(sel.c.id===c.id && sel.c.type!==c.type){
+      playChime(true); btn.classList.add('done'); sel.btn.classList.add('done'); sel.btn.classList.remove('sel'); sel=null; matched++; score+=10; $('#nmStat',box).textContent='Đã nối: '+matched+'/'+list.length;
+      if(matched>=list.length){ var sec=Math.round((Date.now()-t0)/100)/10; setTimeout(function(){ box.innerHTML='<div class="card" style="text-align:center"><div style="font-size:48px">🧩🎉</div><h3>Hoàn thành Trò chơi 2: Nối từ!</h3><p>Con đã nối hết <b>'+list.length+'</b> cặp từ trong <b>'+sec.toFixed(1)+' giây</b> · 🏆 '+score+' điểm!</p><button class="btn" id="nmRe">Chơi lại →</button></div>'; $('#nmRe',box).onclick=function(){ mountSmfMatchGame(vocab, box); }; }, 350); }
+    } else { playChime(false); btn.classList.add('bad'); sel.btn.classList.add('bad'); var prev=sel.btn; sel=null; setTimeout(function(){ btn.classList.remove('bad'); prev.classList.remove('bad','sel'); }, 350); }
+  }; });
+}
+function mountSmfBridgeGame(sentences, box){
+  var list=shuffle(sentences).slice(0, Math.min(5, sentences.length)), k=0, hearts=3, score=0;
+  function renderStep(){
+    if(k>=list.length){ box.innerHTML='<div class="card" style="text-align:center"><div style="font-size:48px">🌉🎉</div><h3>Hoàn thành Trò chơi 3: Xây cầu!</h3><p>Con đã xây xong cầu vượt vực · 🏆 <b>'+score+'</b> điểm!</p><button class="btn" id="brRe">Chơi lại →</button></div>'; $('#brRe',box).onclick=function(){ mountSmfBridgeGame(sentences, box); }; return; }
+    var it=list[k], targetWords=it.words, pool=shuffle(targetWords.map(function(w,wi){ return {w:w, wi:wi}; })), picked=[], used={};
+    function draw(){
+      box.innerHTML='<div class="card"><div class="row between" style="margin-bottom:8px"><b>🌉 Trò chơi 3: Xây cầu</b><span>'+('❤️'.repeat(hearts))+' · Câu '+(k+1)+'/'+list.length+' · 🏆 '+score+'</span></div>'+
+        '<div class="br-stage"><div class="qt" style="margin-bottom:8px">🦜 '+esc(it.vi)+'</div>'+
+        '<div class="br-planks">'+(picked.length?picked.map(function(p){ return '<span class="br-plank">'+esc(p.w)+'</span>'; }).join(''):'<span class="muted small">Chạm đúng thứ tự từng từ để lát ván cầu…</span>')+'</div>'+
+        '<div class="bank" style="position:static;margin-top:10px">'+pool.map(function(p,pi){ return '<button type="button" class="wchip'+(used[pi]?' used':'')+'" data-pi="'+pi+'"'+(used[pi]?' disabled':'')+'>'+esc(p.w)+'</button>'; }).join('')+'</div></div></div>';
+      $('.wchip[data-pi]',box).forEach(function(b){ b.onclick=function(){
+        var pi=+b.dataset.pi, p=pool[pi], need=targetWords[picked.length];
+        if(p.w===need){ playChime(true); used[pi]=1; picked.push(p); if(picked.length>=targetWords.length){ score+=15; k++; setTimeout(renderStep, 300); } else draw(); }
+        else { playChime(false); hearts--; if(hearts<=0){ modal('<h3>💔 Rớt cầu rồi!</h3><p>Con đã chọn sai thứ tự 3 lần. Làm lại từ đầu để nhớ mẫu câu nhé!</p>',[{label:'Chơi lại từ đầu →',value:true}]).then(function(){ mountSmfBridgeGame(sentences, box); }); } else { toast('Chưa đúng thứ tự! Còn '+hearts+' ❤️'); } }
+      }; });
+    }
+    draw();
+  }
+  renderStep();
+}
+function renderSmfWorkspace(){
+  var a=W.a, st=S.student||{}, lvName=st.group||((st.levels||[st.level]).map(function(k){ return (LV[k]||{name:k}).name; }).join(', '));
+  var parsed=parseSmfLesson(a);
+  var inst=(BOOT.standalone && !pwaStandalone()) ? '<button class="btn sm soft" type="button" onclick="pwaInstall()" style="width:100%;margin-bottom:6px">📲 Cài app</button>' : '';
+  var side='<aside class="smf-side">'+
+    '<div class="smf-brand"><div class="logo">H</div><div><b style="font-size:16px">IELTS Hannah</b><small class="muted" style="display:block;font-size:12px">Bài tập về nhà</small></div></div>'+
+    '<div class="smf-user"><b>'+esc(st.name||'Học viên')+'</b><small>'+esc(lvName)+'</small></div>'+
+    '<div class="smf-sec">1. Nhiệm vụ '+esc(parsed.session)+'</div>'+
+    '<button type="button" class="smf-btn'+(SMF_VIEW==='knowledge'?' on':'')+'" data-smf="knowledge">📖 1.1. Kiến thức đã học</button>'+
+    '<div class="smf-btn" style="cursor:default">🎮 1.2. Ôn tập (3 trò chơi)</div>'+
+    '<div class="smf-sub">'+
+      '<button type="button" class="smf-btn'+(SMF_VIEW==='g1'?' on':'')+'" data-smf="g1">🫧 Trò 1: Bắn bong bóng</button>'+
+      '<button type="button" class="smf-btn'+(SMF_VIEW==='g2'?' on':'')+'" data-smf="g2">🧩 Trò 2: Nối từ</button>'+
+      '<button type="button" class="smf-btn'+(SMF_VIEW==='g3'?' on':'')+'" data-smf="g3">🌉 Trò 3: Xây cầu</button>'+
+    '</div>'+
+    '<button type="button" class="smf-btn'+(SMF_VIEW==='work'?' on':'')+'" data-smf="work">✏️ 1.3. Làm bài</button>'+
+    '<div style="border-top:1.5px solid var(--line);margin-top:10px;padding-top:10px">'+inst+
+      '<button type="button" class="smf-btn" id="bk">← Danh sách bài</button>'+
+      '<button type="button" class="smf-btn" id="smfOut">🚪 Đăng xuất</button>'+
+    '</div></aside>';
+  $('#app').innerHTML='<div class="smf-shell">'+side+'<div class="smf-main" id="smfMain"></div></div>';
+  $('#bk').onclick=function(){ stopAllGames(); if(S.student) store('hw_open_'+S.student.id, null); renderHome(); };
+  $('#smfOut').onclick=function(){ stopAllGames(); store('hw_student',null); loginCode(); };
+  $('[data-smf]', $('#app')).forEach(function(b){ b.onclick=function(){ SMF_VIEW=b.dataset.smf; renderSmfWorkspace(); }; });
+  var main=$('#smfMain');
+  if(SMF_VIEW==='knowledge'){
+    main.innerHTML='<div class="card"><h2 style="margin-top:0">'+esc(a.title)+'</h2>'+
+      (a.description?'<div class="rich">'+rich(a.description).replace(/\n/g,'<br>')+'</div>':'<p class="muted">Chưa có tóm tắt kiến thức cho buổi này.</p>')+
+      '<div class="row" style="margin-top:14px"><button class="btn" id="smfGoG1">🎮 Vào ôn tập (Bắn bong bóng) →</button><button class="btn soft" id="smfGoWork">✏️ Sang làm bài →</button></div></div>';
+    $('#smfGoG1',main).onclick=function(){ SMF_VIEW='g1'; renderSmfWorkspace(); };
+    $('#smfGoWork',main).onclick=function(){ SMF_VIEW='work'; renderSmfWorkspace(); };
+    return;
+  }
+  if(SMF_VIEW==='g1'){ mountSmfBubbleGame(parsed.vocab, main); return; }
+  if(SMF_VIEW==='g2'){ mountSmfMatchGame(parsed.vocab, main); return; }
+  if(SMF_VIEW==='g3'){ mountSmfBridgeGame(parsed.sentences, main); return; }
+  var wHtml='<h2 style="margin-top:0">'+esc(a.title)+'</h2>'+
+    '<div class="chips" style="margin:6px 0 12px">'+(a.dueDate?'<span class="chip">⏰ Hạn '+fmtDue(a.dueDate)+'</span>':'')+
+      (W.prev?'<span class="chip ok">Đã nộp '+W.prev.attempts+' lần · nộp lại sẽ thay bài cũ</span>':'')+'</div>';
+  if(inAppBrowser()) wHtml+='<div class="card" style="background:#FFF6E2"><b>📱 Ba mẹ lưu ý:</b> link đang mở trong Zalo/Messenger nên loa và micro có thể không chạy. Bấm <b>⋮</b> hoặc <b>⋯</b> ở góc trên → <b>Mở bằng trình duyệt</b> (Safari/Chrome) để con làm bài tốt nhất nhé.</div>';
+  if(a.links.length){
+    wHtml+='<div class="card"><div class="sechead"><div class="secnum">🔗</div><h3 style="margin:0">Bài tập trên trang khác</h3></div>'+
+      a.links.map(function(l,i){ return '<div class="linkitem"><input type="checkbox" class="chk" data-lk="'+i+'"'+(W.linksDone[i]?' checked':'')+'><div class="t">'+esc(l.label||l.url)+'</div><a class="btn sm soft" href="'+esc(l.url)+'" target="_blank" rel="noopener">Mở</a></div>'; }).join('')+'</div>';
+  }
+  a.activities.forEach(function(act,i){
+    var k=KINDS[act.type]||{label:act.type,icon:'•'};
+    wHtml+='<div class="card" id="act'+i+'"><div class="sechead"><div class="secnum">'+(i+1)+'</div><div><h3 style="margin:0">'+esc(act.title||k.label)+'</h3><div class="muted small">'+k.icon+' '+k.label+'</div></div></div><div class="actbody"></div></div>';
+  });
+  wHtml+='<div class="submitbar"><div class="in"><div class="prog"><i id="pg"></i></div><button class="btn lg accent" id="submit">Nộp bài</button></div></div>';
+  main.innerHTML=wHtml;
+  $('[data-lk]',main).forEach(function(c){ c.onchange=function(){ W.linksDone[+c.dataset.lk]=c.checked; updateProgress(); }; });
+  a.activities.forEach(function(act,i){
+    var body=$('#act'+i+' .actbody');
+    var R={mcq:mountMcq,match:mountMatch,fill:mountFill,flying:mountFlying,speaking:mountSpeaking,writing:mountWriting,say:mountSay,typein:mountTypein,order:mountOrder,photo:mountPhoto,dict:mountDict,ext99:mountExt,extee:mountExt,extlr:mountExt}[act.type];
+    if(R) R(act,i,body);
+  });
+  $('#submit').onclick=trySubmit;
+  updateProgress();
+}
+
 function renderWork(){
+  if(isSmfClass()){ SMF_VIEW='knowledge'; renderSmfWorkspace(); return; }
   var a=W.a;
   var html = header()+'<button class="link" id="bk">← Danh sách bài</button>'+
     '<h2>'+esc(a.title)+'</h2>'+
@@ -2056,7 +2252,7 @@ function mountSpeaking(act,i,el){
 /* Nghe & nói – chấm phát âm */
 var SAY_SR_OK = true; // tắt nếu máy không nhận dạng được giọng nói
 function mountSay(act,i,el){
-  var n=act.items.length, kids=isKidsClass();
+  var n=act.items.length, kids=isKidsClass()||isSmfClass();
   W.answers[i]={scores:act.items.map(function(){ return null; }), heard:act.items.map(function(){ return ''; }), tried:act.items.map(function(){ return false; }), marks:act.items.map(function(){ return null; }), ai:act.items.map(function(){ return false; }), done:false};
   if(kids){
     var groups=[], k=0;
