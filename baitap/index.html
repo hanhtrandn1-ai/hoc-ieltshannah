@@ -1894,7 +1894,7 @@ var PHONICS_ACCEPT = {
   k:['k','ck','kay','c','kit','kick'],
   e:['e','eh','egg','ten','pet'],
   h:['h','aitch','huh','hat','hen','hip'],
-  r:['r','ar','are','ruh','rat','red','rip'],
+  r:['er','err','her','ur','ruh','our','or','rat','red','rip','run','rose','right'],
   m:['m','em','muh','man','men','mom'],
   d:['d','de','dee','duh','dad','dip','dog'],
   g:['g','gee','guh','go','egg','dig'],
@@ -1925,6 +1925,15 @@ var PHONICS_ACCEPT = {
   ue:['ue','oo','you','fuel','blue','cue'],
   er:['er','ur','ir','her','letter','summer'],
   ar:['ar','are','ah','car','jar','star','shark']
+};
+var PHONICS_SPEAK = {
+  s:'sss, sun', a:'ah, ant', t:'tuh, tap', i:'ih, sit', p:'puh, pat', n:'nuh, net',
+  c:'kuh, cap', k:'kuh, kit', e:'eh, egg', h:'huh, hat', r:'err, rat', m:'muh, man',
+  d:'duh, dad', g:'guh, egg', o:'oh, hot', u:'uh, up', l:'luh, leg', f:'fuh, fun',
+  b:'buh, big', ai:'ay, rain', j:'juh, jet', oa:'oh, goat', ie:'eye, lie', ee:'ee, bee',
+  or:'or, corn', z:'zuh, zap', w:'wuh, web', ng:'ing, sing', v:'vuh, van', oo:'oo, moon',
+  y:'yuh, yes', x:'ks, box', ch:'ch, chop', sh:'shh, shop', th:'th, thin', qu:'kw, quiz',
+  ou:'ow, out', oi:'oy, oil', ue:'oo, fuel', er:'er, summer', ar:'ar, shark'
 };
 function detectKidsMonth(){
   var as=(S.home&&S.home.assignments)||[];
@@ -2070,106 +2079,122 @@ function renderKidsGamesHub(box){
   }).catch(function(){ box.innerHTML=''; });
 }
 
+function drawGameSprite(ctx, word, em, cx, cy, sz, t){
+  if(em==='JELLYFISH' || /^jellyfish$/i.test(word||'')){
+    var r=sz*0.36, bob=Math.sin(t*4)*sz*0.04;
+    ctx.save(); ctx.translate(cx, cy+bob);
+    var g=ctx.createRadialGradient(0,-r*0.2,r*0.1,0,0,r*1.5);
+    g.addColorStop(0,'rgba(244,114,182,0.55)'); g.addColorStop(1,'rgba(244,114,182,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,r*1.5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#F9A8D4'; ctx.lineWidth=Math.max(2,sz*0.05); ctx.lineCap='round';
+    for(var i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(i*r*0.28, r*0.1); ctx.quadraticCurveTo(i*r*0.28+Math.sin(t*5+i)*r*0.22, r*0.6, i*r*0.24, r*1.1); ctx.stroke(); }
+    ctx.fillStyle='#F472B6'; ctx.beginPath(); ctx.arc(0,r*0.1,r*0.85,Math.PI,0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.45)'; ctx.beginPath(); ctx.ellipse(-r*0.25,-r*0.22,r*0.22,r*0.12,-0.4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#1F2A33'; ctx.beginPath(); ctx.arc(-r*0.24,-r*0.05,r*0.09,0,Math.PI*2); ctx.arc(r*0.24,-r*0.05,r*0.09,0,Math.PI*2); ctx.fill();
+    ctx.restore(); return;
+  }
+  ctx.save(); ctx.font=Math.round(sz)+'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(em||'⭐', cx, cy); ctx.restore();
+}
 function kidsGameVocab(allCards, scene, onDone){
   var pool=shuffle(allCards).slice(0, Math.min(6, Math.max(4, allCards.length)));
   if(!pool.length) return;
-  var L=$('#layer'), hero='👧', charChosen=false;
+  try{ prefetchTTS(pool.map(function(c){ return c.w; })); }catch(e){}
+  var L=$('#layer'), hero='👧';
   function chooseChar(){
-    L.innerHTML='<div class="pfv"><div class="pfbar"><button class="btn sm plain" id="kvx">✕ Thoát</button><b>🕵️ Thám Tử Siêu Tốc</b></div>'+
-      '<div class="kv-wrap" style="justify-content:center;text-align:center"><div class="card"><h2>Chọn nhân vật của con!</h2><p class="muted">Bối cảnh hôm nay: <b>'+esc(scene.name)+'</b><br>Nhiệm vụ: Tìm đủ <b>'+pool.length+'</b> từ vựng nhanh nhất nhé!</p>'+
+    L.innerHTML='<div class="pfv"><div class="pfbar"><button class="btn sm plain" id="kvx">✕ Thoát</button><b>🕵️ Thám Tử 3D Siêu Tốc</b></div>'+
+      '<div class="kv-wrap" style="justify-content:center;text-align:center"><div class="card"><h2>Chọn nhân vật 3D của con!</h2><p class="muted">Bối cảnh 3D hôm nay: <b>'+esc(scene.name)+'</b><br>Đi qua từng ngóc ngách 3D để tìm đủ <b>'+pool.length+'</b> từ vựng nhanh nhất nhé!</p>'+
       '<div class="kv-chars"><button class="kv-char on" data-c="👧"><span class="av">👧</span>Bé gái</button><button class="kv-char" data-c="👦"><span class="av">👦</span>Bé trai</button></div>'+
-      '<button class="btn lg" id="kvgo" style="width:100%">Bắt đầu đi tìm →</button></div></div></div>';
+      '<button class="btn lg" id="kvgo" style="width:100%">Vào thế giới 3D →</button></div></div></div>';
     $('#kvx').onclick=function(){ L.innerHTML=''; };
     $$('.kv-char',L).forEach(function(b){ b.onclick=function(){ hero=b.dataset.c; $$('.kv-char',L).forEach(function(x){ x.classList.toggle('on',x===b); }); }; });
     $('#kvgo').onclick=start;
   }
   function start(){
-    var spots=[{x:18,y:26},{x:80,y:26},{x:22,y:66},{x:78,y:66},{x:50,y:34},{x:50,y:76},{x:34,y:48},{x:66,y:48}];
-    spots=shuffle(spots);
+    var map=[[1,1,1,1,1,1,1,1,1],[1,0,0,0,1,0,0,0,1],[1,0,1,0,1,0,1,0,1],[1,0,1,0,0,0,1,0,1],[1,0,0,0,1,0,0,0,1],[1,1,1,0,1,0,1,1,1],[1,0,0,0,0,0,0,0,1],[1,0,1,0,1,0,1,0,1],[1,1,1,1,1,1,1,1,1]];
+    var corners=shuffle([{x:1.5,y:1.5},{x:7.5,y:1.5},{x:1.5,y:7.5},{x:7.5,y:7.5},{x:3.5,y:1.5},{x:5.5,y:1.5},{x:3.5,y:7.5},{x:5.5,y:7.5}]);
     var items=pool.map(function(c,idx){
       var em=WORD_EMOJI[String(c.w||'').toLowerCase()]||c.e||'⭐';
       if(/^color:|^shape:|^\d+$/.test(em)) em='⭐';
-      return { w:c.w, vi:c.vi||'', em:em, x:spots[idx%spots.length].x, y:spots[idx%spots.length].y, found:false };
+      return { w:c.w, vi:c.vi||'', em:em, x:corners[idx%corners.length].x, y:corners[idx%corners.length].y, found:false };
     });
     var order=shuffle(items.map(function(_,i){ return i; }));
-    var step=0, hx=50, hy=54, t0=Date.now(), iv=null, ended=false;
+    var step=0, px=4.5, py=6.5, pa=-Math.PI/2, t0=Date.now(), ended=false, raf=null, keys={u:0,d:0,l:0,r:0};
+    var pal = scene.id==='ocean' ? {sky1:'#0284C7',sky2:'#0369A1',fl1:'#0C4A6E',fl2:'#075985',w1:'#14B8A6',w2:'#0F766E'}
+      : scene.id==='garden' ? {sky1:'#7DD3FC',sky2:'#E0F2FE',fl1:'#65A30D',fl2:'#4D7C0F',w1:'#15803D',w2:'#166534'}
+      : scene.id==='room' ? {sky1:'#FDE68A',sky2:'#FEF3C7',fl1:'#D97706',fl2:'#B45309',w1:'#F59E0B',w2:'#D97706'}
+      : scene.id==='farm' ? {sky1:'#93C5FD',sky2:'#DBEAFE',fl1:'#84CC16',fl2:'#65A30D',w1:'#B45309',w2:'#92400E'}
+      : {sky1:'#93C5FD',sky2:'#E0F2FE',fl1:'#10B981',fl2:'#059669',w1:'#0E7C72',w2:'#0F766E'};
     var fmt=function(ms){ var s=Math.floor(ms/1000), m=Math.floor(s/60); s=s%60; return (m<10?'0':'')+m+':'+(s<10?'0':'')+s; };
     L.innerHTML='<div class="pfv"><div class="kv-wrap">'+
-      '<div class="kv-hud"><button class="btn sm plain" id="kvx">✕</button><b style="flex:1">'+esc(scene.name)+'</b><span class="chip brand" id="kvcnt">Đã tìm: 0/'+items.length+'</span><span class="chip sun" id="kvtm">⏱ 00:00</span></div>'+
-      '<div class="kv-target"><button type="button" class="spk" id="kvspk" style="width:46px;height:46px;font-size:22px">🔊</button><div style="flex:1"><div class="small" style="opacity:.9">Hãy đi tìm từ:</div><div class="w" id="kvw"></div></div></div>'+
-      '<div class="kv-arena" id="kvarena" style="background:'+scene.bg+'">'+
-        scene.props.map(function(p){ return '<div class="kv-prop" style="left:'+p.x+'%;top:'+p.y+'%">'+p.e+'</div>'; }).join('')+
-        items.map(function(it,idx){ return '<div class="kv-item" id="kvi'+idx+'" style="left:'+it.x+'%;top:'+it.y+'%"><span class="em">'+it.em+'</span><span class="lb">'+esc(it.w)+'</span></div>'; }).join('')+
-        '<div class="kv-hero" id="kvhero" style="left:'+hx+'%;top:'+hy+'%"><span class="tag">Con</span>'+hero+'</div>'+
+      '<div class="kv-hud"><button class="btn sm plain" id="kvx">✕</button><b style="flex:1">'+esc(scene.name)+' (3D)</b><span class="chip brand" id="kvcnt">Đã tìm: 0/'+items.length+'</span><span class="chip sun" id="kvtm">⏱ 00:00</span></div>'+
+      '<div class="kv-target"><button type="button" class="spk" id="kvspk" style="width:46px;height:46px;font-size:22px">🔊</button><div style="flex:1"><div class="small" style="opacity:.9">Đi qua các ngóc ngách 3D để tìm:</div><div class="w" id="kvw"></div></div><span style="font-size:32px">'+hero+'</span></div>'+
+      '<div style="position:relative;border-radius:20px;overflow:hidden;border:3px solid #fff;box-shadow:0 12px 30px rgba(0,0,0,.18)">'+
+        '<canvas id="kv3d" width="640" height="380" style="width:100%;height:auto;display:block;touch-action:none"></canvas>'+
       '</div>'+
-      '<div class="row between"><span class="muted small">Chạm vào nơi muốn đi (hoặc bấm mũi tên) để chạm trúng từ!</span>'+
-      '<div class="kv-dpad"><span></span><button data-d="u">⬆️</button><span></span><button data-d="l">⬅️</button><button data-d="d">⬇️</button><button data-d="r">➡️</button></div></div>'+
+      '<div class="row between"><span class="muted small">Vuốt màn hình để xoay góc nhìn · Giữ nút mũi tên để đi!</span>'+
+      '<div class="kv-dpad"><span></span><button data-m="u">⬆️</button><span></span><button data-m="l">⬅️</button><button data-m="d">⬇️</button><button data-m="r">➡️</button></div></div>'+
       '</div></div>';
-    var arena=$('#kvarena'), heroEl=$('#kvhero');
-    function updateTarget(){
-      var cur=items[order[step]];
-      $('#kvw').textContent=cur.w + (cur.vi?' ('+cur.vi+')':'');
-      $('#kvcnt').textContent='Đã tìm: '+step+'/'+items.length;
-      speak(cur.w);
-    }
+    var cv=$('#kv3d'), ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+    function updateTarget(){ var cur=items[order[step]]; $('#kvw').textContent=cur.w+(cur.vi?' ('+cur.vi+')':''); $('#kvcnt').textContent='Đã tìm: '+step+'/'+items.length; speak(cur.w); }
     $('#kvspk').onclick=function(){ var cur=items[order[step]]; if(cur) speak(cur.w); };
-    function moveTo(nx, ny){
+    function canWalk(nx, ny){ var r=0.24; return map[Math.floor(ny-r)][Math.floor(nx-r)]===0 && map[Math.floor(ny+r)][Math.floor(nx+r)]===0 && map[Math.floor(ny-r)][Math.floor(nx+r)]===0 && map[Math.floor(ny+r)][Math.floor(nx-r)]===0; }
+    function checkCollect(){
+      var tidx=order[step], target=items[tidx]; if(!target || target.found) return;
+      if(Math.hypot(px-target.x, py-target.y)<0.85){ target.found=true; playChime(true); speak(target.w); toast('⭐ Tuyệt vời! Tìm thấy '+target.w.toUpperCase()+'!'); step++; if(step>=items.length) finish(); else updateTarget(); }
+    }
+    var dragX=null;
+    cv.addEventListener('pointerdown',function(e){ dragX=e.clientX; });
+    cv.addEventListener('pointermove',function(e){ if(dragX!=null){ pa+=(e.clientX-dragX)*0.008; dragX=e.clientX; } });
+    cv.addEventListener('pointerup',function(){ dragX=null; });
+    $$('[data-m]',L).forEach(function(b){ var m=b.dataset.m; b.onpointerdown=function(e){ e.preventDefault(); keys[m]=1; }; b.onpointerup=b.onpointerleave=b.onpointercancel=function(){ keys[m]=0; }; });
+    var onKey=function(e,v){ if(e.key==='ArrowUp'||e.key==='w') keys.u=v; else if(e.key==='ArrowDown'||e.key==='s') keys.d=v; else if(e.key==='ArrowLeft'||e.key==='a') keys.l=v; else if(e.key==='ArrowRight'||e.key==='d') keys.r=v; };
+    var kd=function(e){ onKey(e,1); }, ku=function(e){ onKey(e,0); }; document.addEventListener('keydown', kd); document.addEventListener('keyup', ku);
+    function loop(){
       if(ended) return;
-      hx=Math.max(8,Math.min(92,nx)); hy=Math.max(12,Math.min(88,ny));
-      heroEl.style.left=hx+'%'; heroEl.style.top=hy+'%';
-      checkHit();
-    }
-    function checkHit(){
-      var tidx=order[step], target=items[tidx];
-      var dx=hx-target.x, dy=hy-target.y;
-      if(Math.hypot(dx,dy)<=13){
-        target.found=true;
-        var el=$('#kvi'+tidx); el.classList.add('found','boom');
-        playChime(true); speak(target.w);
-        var pop=document.createElement('div'); pop.className='kv-pop'; pop.style.left=target.x+'%'; pop.style.top=target.y+'%'; pop.textContent='⭐ '+target.w.toUpperCase()+'!';
-        arena.appendChild(pop); setTimeout(function(){ pop.remove(); },900);
-        step++;
-        if(step>=items.length){ finish(); } else { updateTarget(); }
-        return;
+      if(keys.l) pa-=0.048; if(keys.r) pa+=0.048;
+      var spd=(keys.u?0.065:0)-(keys.d?0.05:0);
+      if(spd){ var nx=px+Math.cos(pa)*spd, ny=py+Math.sin(pa)*spd; if(canWalk(nx, py)) px=nx; if(canWalk(px, ny)) py=ny; }
+      checkCollect(); $('#kvtm').textContent='⏱ '+fmt(Date.now()-t0);
+      var t=Date.now()/1000;
+      var sg=ctx.createLinearGradient(0,0,0,H/2); sg.addColorStop(0,pal.sky1); sg.addColorStop(1,pal.sky2); ctx.fillStyle=sg; ctx.fillRect(0,0,W,H/2);
+      var fg=ctx.createLinearGradient(0,H/2,0,H); fg.addColorStop(0,pal.fl1); fg.addColorStop(1,pal.fl2); ctx.fillStyle=fg; ctx.fillRect(0,H/2,W,H/2);
+      var fov=Math.PI/3, rays=160, rw=W/rays, zbuf=[];
+      for(var i=0;i<rays;i++){
+        var ra=pa-fov/2+(i/rays)*fov, cos=Math.cos(ra), sin=Math.sin(ra), dist=0, hit=0, side=0;
+        while(!hit && dist<14){ dist+=0.04; var rx=px+cos*dist, ry=py+sin*dist, mx=Math.floor(rx), my=Math.floor(ry); if(mx<0||my<0||mx>=9||my>=9||map[my][mx]===1){ hit=1; var fx=rx-mx, fy=ry-my; side=(Math.min(fx,1-fx)<Math.min(fy,1-fy))?1:0; } }
+        var perp=Math.max(0.2, dist*Math.cos(ra-pa)); zbuf[i]=perp; var wh=Math.min(H*1.5, H/perp);
+        ctx.fillStyle=side?pal.w2:pal.w1; ctx.fillRect(i*rw, (H-wh)/2, rw+1, wh);
+        var shade=Math.min(0.6, perp/12); if(shade>0){ ctx.fillStyle='rgba(0,0,0,'+shade+')'; ctx.fillRect(i*rw, (H-wh)/2, rw+1, wh); }
       }
-      for(var j=0;j<items.length;j++){
-        if(j!==tidx && !items[j].found && Math.hypot(hx-items[j].x, hy-items[j].y)<=10){
-          playChime(false);
-          toast('Đây là '+items[j].w+' – con tìm '+target.w+' nhé!');
-          break;
-        }
-      }
-    }
-    arena.onclick=function(e){
-      var r=arena.getBoundingClientRect();
-      moveTo((e.clientX-r.left)/r.width*100, (e.clientY-r.top)/r.height*100);
-    };
-    $$('.kv-item',arena).forEach(function(el,idx){ el.onclick=function(e){ e.stopPropagation(); moveTo(items[idx].x, items[idx].y); }; });
-    $$('[data-d]',L).forEach(function(b){ b.onclick=function(){
-      var d=b.dataset.d; moveTo(hx+(d==='r'?12:d==='l'?-12:0), hy+(d==='d'?12:d==='u'?-12:0));
-    }; });
-    var onKey=function(e){
-      if(e.key==='ArrowUp'||e.key==='w') moveTo(hx,hy-10);
-      else if(e.key==='ArrowDown'||e.key==='s') moveTo(hx,hy+10);
-      else if(e.key==='ArrowLeft'||e.key==='a') moveTo(hx-10,hy);
-      else if(e.key==='ArrowRight'||e.key==='d') moveTo(hx+10,hy);
-    };
-    document.addEventListener('keydown', onKey);
-    iv=setInterval(function(){ $('#kvtm').textContent='⏱ '+fmt(Date.now()-t0); }, 250);
-    function finish(){
-      ended=true; clearInterval(iv); document.removeEventListener('keydown', onKey);
-      var sec=Math.round((Date.now()-t0)/100)/10;
-      $('#kvcnt').textContent='Đã tìm: '+items.length+'/'+items.length;
-      modal('<h3>🎉 Tuyệt vời! Tìm xong hết rồi!</h3><p>Con đã tìm đủ <b>'+items.length+'</b> từ trong <b>'+sec.toFixed(1)+' giây</b>!</p>',[{label:'Lưu kết quả & Tiếp tục →',value:true}]).then(function(){
-        L.innerHTML=''; if(onDone) onDone(sec);
+      var vis=items.filter(function(it){ return !it.found; }).map(function(it){ return { it:it, dist:Math.hypot(it.x-px, it.y-py), isTarget:(it===items[order[step]]) }; }).sort(function(a,b){ return b.dist-a.dist; });
+      vis.forEach(function(v){
+        var ang=Math.atan2(v.it.y-py, v.it.x-px)-pa; while(ang>Math.PI) ang-=2*Math.PI; while(ang<-Math.PI) ang+=2*Math.PI;
+        if(Math.abs(ang)>fov*0.75) return;
+        var sx=(0.5+ang/fov)*W, sz=Math.min(130, Math.max(24, (H/v.dist)*0.42)), rayIdx=Math.floor(sx/rw);
+        if(rayIdx>=0 && rayIdx<rays && v.dist>zbuf[rayIdx]+0.35) return;
+        var sy=H/2 + (H/v.dist)*0.08 + Math.sin(t*3)*4;
+        if(v.isTarget){ ctx.save(); ctx.strokeStyle='#FDE047'; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(sx, sy, sz*0.62, 0, Math.PI*2); ctx.stroke(); ctx.restore(); }
+        drawGameSprite(ctx, v.it.w, v.it.em, sx, sy, sz, t);
+        ctx.save(); ctx.font='bold '+Math.max(12,Math.round(sz*0.24))+'px "Be Vietnam Pro",sans-serif';
+        var tw=ctx.measureText(v.it.w).width+16, bx=sx-tw/2, by=sy+sz*0.52;
+        ctx.fillStyle=v.isTarget?'#FEF08A':'rgba(255,255,255,0.92)'; ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(bx, by, tw, 24, 12); else ctx.rect(bx, by, tw, 24); ctx.fill();
+        ctx.fillStyle='#1F2A33'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(v.it.w, sx, by+12); ctx.restore();
       });
+      var ms=10, mx0=W-9*ms-10, my0=10;
+      ctx.save(); ctx.fillStyle='rgba(15,23,42,0.65)'; ctx.fillRect(mx0-4,my0-4,9*ms+8,9*ms+8);
+      for(var r=0;r<9;r++) for(var c=0;c<9;c++){ ctx.fillStyle=map[r][c]?'#94A3B8':'rgba(255,255,255,0.18)'; ctx.fillRect(mx0+c*ms, my0+r*ms, ms-1, ms-1); }
+      items.forEach(function(it){ if(it.found) return; ctx.fillStyle=(it===items[order[step]])?'#FDE047':'#38BDF8'; ctx.beginPath(); ctx.arc(mx0+it.x*ms, my0+it.y*ms, 3, 0, Math.PI*2); ctx.fill(); });
+      ctx.fillStyle='#F43F5E'; ctx.beginPath(); ctx.arc(mx0+px*ms, my0+py*ms, 3.8, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(mx0+px*ms, my0+py*ms); ctx.lineTo(mx0+(px+Math.cos(pa)*0.8)*ms, my0+(py+Math.sin(pa)*0.8)*ms); ctx.stroke(); ctx.restore();
+      raf=requestAnimationFrame(loop);
     }
-    $('#kvx').onclick=function(){ clearInterval(iv); document.removeEventListener('keydown', onKey); L.innerHTML=''; };
-    updateTarget();
+    function cleanup(){ ended=true; if(raf) cancelAnimationFrame(raf); document.removeEventListener('keydown', kd); document.removeEventListener('keyup', ku); }
+    function finish(){ cleanup(); var sec=Math.round((Date.now()-t0)/100)/10; $('#kvcnt').textContent='Đã tìm: '+items.length+'/'+items.length; modal('<h3>🎉 Tuyệt vời! Tìm xong hết rồi!</h3><p>Con đã khám phá các ngóc ngách 3D và tìm đủ <b>'+items.length+'</b> từ trong <b>'+sec.toFixed(1)+' giây</b>!</p>',[{label:'Lưu kết quả & Tiếp tục →',value:true}]).then(function(){ L.innerHTML=''; if(onDone) onDone(sec); }); }
+    $('#kvx').onclick=function(){ cleanup(); L.innerHTML=''; }; updateTarget(); loop();
   }
   chooseChar();
 }
-
 function kidsGamePhonics(defaultMon, onDone){
   var mon=defaultMon||5, L=$('#layer');
   function launch(){
@@ -2244,7 +2269,7 @@ function kidsGamePhonics(defaultMon, onDone){
       $('#kpstage').appendChild(w);
       $('#kpdone').onclick=function(){ L.innerHTML=''; if(onDone) onDone(sec); };
     }
-    $('#kpspk').onclick=function(){ var g=gates[idx]; if(g) speak(g.txt); };
+    $('#kpspk').onclick=function(){ var g=gates[idx]; if(g) speak(g.isSound?(PHONICS_SPEAK[g.txt.toLowerCase()]||g.txt):g.txt); };
     $('#kpgo').onclick=function(){
       if(ended) return;
       if(listening && curStop){ curStop(); return; }
