@@ -2339,6 +2339,10 @@ function renderHome(){
   var h=S.home, st=h.student, lv={name: st.group || (st.levels||[st.level]).map(function(k){ return (LV[k]||{name:k}).name; }).join(', ')};
   var todo=h.assignments.filter(function(a){ return !hwDone(a); });
   var done=h.assignments.filter(function(a){ return hwDone(a); });
+  if(isSmfClass()){
+    if(!W && S.tab==='todo' && todo.length){ openAssignment(todo[0].id); return; }
+    renderSmfHomeShell(todo, done); return;
+  }
   var list = S.tab==='todo'?todo:done;
   var kids = isKidsClass();
   var todoBody = '';
@@ -2439,44 +2443,41 @@ var SMF_VIEW = 'knowledge'; // 'knowledge' | 'g1' | 'g2' | 'g3' | 'work'
 function parseSmfLesson(a){
   var desc = String((a&&a.description)||'');
   var vocab = [], seen = {};
-  var re = /([A-Za-z][A-Za-z0-9\s'\/-]{1,32}?)\s*\(([^()]{1,42})\)/g, m;
+  var re = /(?:^|[^A-Za-zÀ-ỹ])([A-Za-z][A-Za-z0-9 \t'\/-]{1,30}?)[ \t]*\(([^()\n]{1,42})\)/g, m;
+  var enKeep = {in:1,on:1,at:1,by:1,to:1,up:1,go:1,do:1,be:1,we:1,he:1,me:1,my:1,no:1,or:1,of:1,is:1,it:1};
   while((m=re.exec(desc))!==null){
-    var en=m[1].trim().replace(/^[\s,.:;–-]+|[\s,.:;–-]+$/g,''), vi=m[2].trim();
+    var en=m[1].trim().replace(/^[ \t,.:;–-]+|[ \t,.:;–-]+$/g,''), vi=m[2].trim();
     if(!en || !vi) continue;
-    if(/purpose|thời gian|buổi|question|ôn lại|chỉ mục đích/i.test(en+' '+vi)) continue;
+    if(en.length<=2 && !enKeep[en.toLowerCase()]) continue;
+    if(/purpose|thời gian|buổi|question|ôn lại|chỉ mục đích|to \+ v|^ng\b/i.test(en+' '+vi)) continue;
     if(en.split(/\s+/).length>5) continue;
     var key=en.toLowerCase();
     if(!seen[key]){ seen[key]=1; vocab.push({en:en, vi:vi}); }
   }
   if(vocab.length<4 && S.fc && Array.isArray(S.fc.cards)){
-    S.fc.cards.forEach(function(c){
-      if(c.w && c.vi && !seen[c.w.toLowerCase()]){ seen[c.w.toLowerCase()]=1; vocab.push({en:c.w, vi:c.vi}); }
-    });
+    S.fc.cards.forEach(function(c){ if(c.w && c.vi && !seen[c.w.toLowerCase()]){ seen[c.w.toLowerCase()]=1; vocab.push({en:c.w, vi:c.vi}); } });
   }
   var sentences = [];
   (a&&a.activities||[]).forEach(function(act){
     if(act.type==='order' && Array.isArray(act.items)){
-      act.items.forEach(function(it){ if(it.vi && Array.isArray(it.words)) sentences.push({vi:it.vi, words:it.words.slice()}); });
+      act.items.forEach(function(it){
+        var ans = it.ans || it.correct || it.en || '';
+        if(it.vi && ans){ var ws = String(ans).trim().split(/\s+/); if(ws.length>=3) sentences.push({vi:it.vi, words:ws}); }
+      });
     }
   });
   if(!sentences.length){
     var lines = desc.split(/\n+/);
     for(var i=0;i<lines.length;i++){
-      var qm = lines[i].match(/Q\d+\.?\s*[^(]+\(([^)]+)\)/i);
-      var nx = lines[i+1]||'';
-      var am = nx.match(/^[→>-]\s*(.+)$/);
-      if(qm && am){
-        var ansTxt = am[1].trim().replace(/[.!?]+$/,'');
-        var ws = ansTxt.split(/\s+/);
-        if(ws.length>=3 && ws.length<=12) sentences.push({ vi:'Dịch/Ghép câu trả lời cho: '+qm[1].trim(), words:ws });
-      }
+      var qm = lines[i].match(/Q\d+\.?\s*[^(]+\(([^)]+)\)/i), nx = lines[i+1]||'', am = nx.match(/^[→>-]\s*(.+)$/);
+      if(qm && am){ var ws = am[1].trim().replace(/[.!?]+$/,'').split(/\s+/); if(ws.length>=3 && ws.length<=12) sentences.push({ vi:'Ghép câu trả lời cho: '+qm[1].trim(), words:ws }); }
     }
   }
   if(!sentences.length){
     sentences = [
-      {vi:'Tôi thường đi đến công viên với các bạn của tôi.', words:['I','often','go','to','the','park','with','my','friends.']},
-      {vi:'Thứ Bảy tuần trước tôi đã đi đá bóng.', words:['I','went','to','play','football','last','Saturday.']},
-      {vi:'Hôm qua tôi đã rất vui.', words:['I','was','very','happy','yesterday.']}
+      {vi:'Tôi thường đi đến công viên với các bạn của tôi.', words:['I','often','go','to','the','park','with','my','friends']},
+      {vi:'Thứ Bảy tuần trước tôi đã đi đá bóng.', words:['I','went','to','play','football','last','Saturday']},
+      {vi:'Hôm qua tôi đã rất vui.', words:['I','was','very','happy','yesterday']}
     ];
   }
   var sm = String((a&&a.title)||'').match(/(\d+\.\d+)/);
@@ -2486,146 +2487,130 @@ function mountSmfBubbleGame(vocab, box){
   if(!vocab.length){ box.innerHTML='<div class="card empty">Chưa có danh sách từ vựng trong phần Kiến thức trên lớp để chơi Bắn bong bóng.</div>'; return; }
   var total = Math.min(10, Math.max(5, vocab.length));
   var queue = shuffle(vocab); while(queue.length<total) queue=queue.concat(shuffle(vocab)); queue=queue.slice(0,total);
-  var idx=0, hearts=3, score=0, iv=null, bubs=[];
+  var idx=0, hearts=10, score=0, iv=null, bubs=[];
   function startRound(){
-    if(idx>=total){
-      clearInterval(iv);
-      box.innerHTML='<div class="card" style="text-align:center"><div style="font-size:48px">🫧🎉</div><h3>Hoàn thành Trò chơi 1: Bắn bong bóng!</h3><p>Con đạt <b>'+score+'</b> điểm ('+total+' lượt từ vựng).</p><button class="btn" id="bbRe">Chơi lại →</button></div>';
-      $('#bbRe',box).onclick=function(){ mountSmfBubbleGame(vocab, box); };
-      return;
-    }
-    var target=queue[idx];
-    var choices=shuffle(vocab.filter(function(v){ return v.en.toLowerCase()!==target.en.toLowerCase(); })).slice(0,4);
+    if(idx>=total){ clearInterval(iv); box.innerHTML='<div class="card" style="text-align:center"><div style="font-size:48px">🫧🎉</div><h3>Hoàn thành Trò chơi 1: Bắn bong bóng!</h3><p>Con đạt <b>'+score+'</b> điểm ('+total+' lượt từ vựng).</p><button class="btn" id="bbRe">Chơi lại →</button></div>'; $('#bbRe',box).onclick=function(){ mountSmfBubbleGame(vocab, box); }; return; }
+    var target=queue[idx], choices=shuffle(vocab.filter(function(v){ return v.en.toLowerCase()!==target.en.toLowerCase(); })).slice(0,4);
     choices.push(target); choices=shuffle(choices);
-    box.innerHTML='<div class="card"><div class="row between" style="margin-bottom:8px"><b>🫧 Trò chơi 1: Bắn bong bóng</b><span>'+('❤️'.repeat(hearts))+' · Lượt '+(idx+1)+'/'+total+' · 🏆 '+score+'</span></div>'+
+    box.innerHTML='<div class="card"><div class="row between" style="margin-bottom:8px"><b>🫧 Trò chơi 1: Bắn bong bóng</b><span>❤️ '+hearts+'/10 · Lượt '+(idx+1)+'/'+total+' · 🏆 '+score+'</span></div>'+
       '<div style="text-align:center;margin-bottom:10px"><div class="small muted">CHẠM BONG BÓNG CÓ TỪ KHỚP VỚI NGHĨA</div><div style="font-size:24px;font-weight:800;color:var(--brand)">'+esc(target.vi)+'</div></div>'+
       '<div class="bb-stage" id="bbStage"></div></div>';
     var st=$('#bbStage',box), Wd=st.clientWidth||520;
     bubs=choices.map(function(c,bi){
-      var sz=Math.max(76, Math.min(118, 66+c.en.length*4));
-      var el=document.createElement('div'); el.className='bb-bub'; el.textContent=c.en;
-      el.style.width=sz+'px'; el.style.height=sz+'px';
+      var sz=Math.max(76, Math.min(118, 66+c.en.length*4)), el=document.createElement('div');
+      el.className='bb-bub'; el.textContent=c.en; el.style.width=sz+'px'; el.style.height=sz+'px';
       var x=12+(bi*(Wd-sz-24)/Math.max(1,choices.length-1)), y=250+Math.random()*50, vy=0.45+Math.random()*0.45;
       el.style.left=x+'px'; el.style.top=y+'px';
       el.onclick=function(){
-        if(c.en===target.en){
-          clearInterval(iv); el.classList.add('pop'); playChime(true); speak(target.en); score+=10; idx++;
-          setTimeout(startRound, 320);
-        } else {
-          el.classList.add('bad'); playChime(false); hearts--;
-          if(hearts<=0){
-            clearInterval(iv);
-            modal('<h3>💔 Hết tim rồi!</h3><p>Con đã sai 3 lần. Hãy chơi lại từ đầu để nhớ thật chắc từ vựng nhé!</p>',[{label:'Chơi lại từ đầu →',value:true}]).then(function(){ mountSmfBubbleGame(vocab, box); });
-          } else {
-            toast('Sai rồi! Còn '+hearts+' ❤️');
-            startRound();
-          }
-        }
+        if(c.en===target.en){ clearInterval(iv); el.classList.add('pop'); playChime(true); speak(target.en); score+=10; idx++; setTimeout(startRound, 320); }
+        else { el.classList.add('bad'); playChime(false); hearts--; if(hearts<=0){ clearInterval(iv); modal('<h3>💔 Hết 10 máu rồi!</h3><p>Con đã mất hết 10 máu. Hãy chơi lại từ đầu để nhớ thật chắc từ vựng nhé!</p>',[{label:'Chơi lại từ đầu →',value:true}]).then(function(){ mountSmfBubbleGame(vocab, box); }); } else { toast('Sai rồi! Còn '+hearts+'/10 ❤️'); startRound(); } }
       };
-      st.appendChild(el);
-      return { el:el, y:y, vy:vy };
+      st.appendChild(el); return { el:el, y:y, vy:vy };
     });
     clearInterval(iv);
-    iv=setInterval(function(){
-      if(!document.body.contains(st)){ clearInterval(iv); return; }
-      bubs.forEach(function(b){ b.y-=b.vy; if(b.y<-90) b.y=310; b.el.style.top=b.y+'px'; });
-    }, 30);
+    iv=setInterval(function(){ if(!document.body.contains(st)){ clearInterval(iv); return; } bubs.forEach(function(b){ b.y-=b.vy; if(b.y<-90) b.y=310; b.el.style.top=b.y+'px'; }); }, 30);
   }
   startRound();
 }
 function mountSmfMatchGame(vocab, box){
   if(vocab.length<2){ box.innerHTML='<div class="card empty">Chưa đủ từ vựng để chơi Nối từ.</div>'; return; }
-  var list=shuffle(vocab).slice(0, Math.min(6, vocab.length));
-  var cards=[];
+  var list=shuffle(vocab).slice(0, Math.min(6, vocab.length)), cards=[];
   list.forEach(function(v,idx){ cards.push({id:idx,type:'en',txt:v.en}); cards.push({id:idx,type:'vi',txt:v.vi}); });
   cards=shuffle(cards);
-  var sel=null, matched=0, t0=Date.now(), score=0;
-  box.innerHTML='<div class="card"><div class="row between" style="margin-bottom:10px"><b>🧩 Trò chơi 2: Nối từ</b><span class="chip brand" id="nmStat">Đã nối: 0/'+list.length+'</span></div>'+
+  var sel=null, matched=0, hearts=10, t0=Date.now(), score=0;
+  box.innerHTML='<div class="card"><div class="row between" style="margin-bottom:10px"><b>🧩 Trò chơi 2: Nối từ</b><span class="chip brand" id="nmStat">❤️ '+hearts+'/10 · Đã nối: 0/'+list.length+'</span></div>'+
     '<p class="muted small" style="margin-top:0">Chạm thẻ tiếng Anh (trắng) và thẻ nghĩa tiếng Việt (kem) khớp nhau để xóa bảng.</p>'+
     '<div class="nm-board" id="nmBoard">'+cards.map(function(c,ci){ return '<button type="button" class="nm-card '+c.type+'" data-ci="'+ci+'">'+esc(c.txt)+'</button>'; }).join('')+'</div></div>';
   $$('.nm-card',box).forEach(function(btn){ btn.onclick=function(){
-    var ci=+btn.dataset.ci, c=cards[ci];
-    if(btn.classList.contains('done')) return;
-    if(c.type==='en') speak(c.txt);
+    var ci=+btn.dataset.ci, c=cards[ci]; if(btn.classList.contains('done')) return; if(c.type==='en') speak(c.txt);
     if(!sel){ sel={ci:ci, btn:btn, c:c}; btn.classList.add('sel'); return; }
     if(sel.ci===ci){ btn.classList.remove('sel'); sel=null; return; }
     if(sel.c.id===c.id && sel.c.type!==c.type){
-      playChime(true); btn.classList.add('done'); sel.btn.classList.add('done'); sel.btn.classList.remove('sel');
-      sel=null; matched++; score+=10; $('#nmStat',box).textContent='Đã nối: '+matched+'/'+list.length;
-      if(matched>=list.length){
-        var sec=Math.round((Date.now()-t0)/100)/10;
-        setTimeout(function(){
-          box.innerHTML='<div class="card" style="text-align:center"><div style="font-size:48px">🧩🎉</div><h3>Hoàn thành Trò chơi 2: Nối từ!</h3><p>Con đã nối hết <b>'+list.length+'</b> cặp từ trong <b>'+sec.toFixed(1)+' giây</b> · 🏆 '+score+' điểm!</p><button class="btn" id="nmRe">Chơi lại →</button></div>';
-          $('#nmRe',box).onclick=function(){ mountSmfMatchGame(vocab, box); };
-        }, 350);
-      }
+      playChime(true); btn.classList.add('done'); sel.btn.classList.add('done'); sel.btn.classList.remove('sel'); sel=null; matched++; score+=10; $('#nmStat',box).textContent='❤️ '+hearts+'/10 · Đã nối: '+matched+'/'+list.length;
+      if(matched>=list.length){ var sec=Math.round((Date.now()-t0)/100)/10; setTimeout(function(){ box.innerHTML='<div class="card" style="text-align:center"><div style="font-size:48px">🧩🎉</div><h3>Hoàn thành Trò chơi 2: Nối từ!</h3><p>Con đã nối hết <b>'+list.length+'</b> cặp từ trong <b>'+sec.toFixed(1)+' giây</b> · 🏆 '+score+' điểm!</p><button class="btn" id="nmRe">Chơi lại →</button></div>'; $('#nmRe',box).onclick=function(){ mountSmfMatchGame(vocab, box); }; }, 350); }
     } else {
-      playChime(false); btn.classList.add('bad'); sel.btn.classList.add('bad');
-      var prev=sel.btn; sel=null;
-      setTimeout(function(){ btn.classList.remove('bad'); prev.classList.remove('bad','sel'); }, 350);
+      playChime(false); hearts--;
+      if(hearts<=0){ modal('<h3>💔 Hết 10 máu rồi!</h3><p>Con đã mất hết 10 máu. Hãy chơi lại từ đầu nhé!</p>',[{label:'Chơi lại từ đầu →',value:true}]).then(function(){ mountSmfMatchGame(vocab, box); }); return; }
+      $('#nmStat',box).textContent='❤️ '+hearts+'/10 · Đã nối: '+matched+'/'+list.length; btn.classList.add('bad'); sel.btn.classList.add('bad'); var prev=sel.btn; sel=null; setTimeout(function(){ btn.classList.remove('bad'); prev.classList.remove('bad','sel'); }, 350);
     }
   }; });
 }
 function mountSmfBridgeGame(sentences, box){
-  var list=shuffle(sentences).slice(0, Math.min(5, sentences.length));
-  var k=0, hearts=3, score=0;
+  var list=shuffle(sentences).slice(0, Math.min(5, sentences.length)), k=0, hearts=10, score=0;
   function renderStep(){
-    if(k>=list.length){
-      box.innerHTML='<div class="card" style="text-align:center"><div style="font-size:48px">🌉🎉</div><h3>Hoàn thành Trò chơi 3: Xây cầu!</h3><p>Con đã xây xong cầu vượt vực · 🏆 <b>'+score+'</b> điểm!</p><button class="btn" id="brRe">Chơi lại →</button></div>';
-      $('#brRe',box).onclick=function(){ mountSmfBridgeGame(sentences, box); };
-      return;
-    }
-    var it=list[k], targetWords=it.words, pool=shuffle(targetWords.map(function(w,wi){ return {w:w, wi:wi}; }));
-    var picked=[], used={};
+    if(k>=list.length){ box.innerHTML='<div class="card" style="text-align:center"><div style="font-size:48px">🌉🎉</div><h3>Hoàn thành Trò chơi 3: Xây cầu!</h3><p>Con đã xây xong cầu vượt vực · 🏆 <b>'+score+'</b> điểm!</p><button class="btn" id="brRe">Chơi lại →</button></div>'; $('#brRe',box).onclick=function(){ mountSmfBridgeGame(sentences, box); }; return; }
+    var it=list[k], targetWords=it.words, pool=shuffle(targetWords.map(function(w,wi){ return {w:w, wi:wi}; })), picked=[], used={};
     function draw(){
-      box.innerHTML='<div class="card"><div class="row between" style="margin-bottom:8px"><b>🌉 Trò chơi 3: Xây cầu</b><span>'+('❤️'.repeat(hearts))+' · Câu '+(k+1)+'/'+list.length+' · 🏆 '+score+'</span></div>'+
+      box.innerHTML='<div class="card"><div class="row between" style="margin-bottom:8px"><b>🌉 Trò chơi 3: Xây cầu</b><span>❤️ '+hearts+'/10 · Câu '+(k+1)+'/'+list.length+' · 🏆 '+score+'</span></div>'+
         '<div class="br-stage"><div class="qt" style="margin-bottom:8px">🦜 '+esc(it.vi)+'</div>'+
         '<div class="br-planks">'+(picked.length?picked.map(function(p){ return '<span class="br-plank">'+esc(p.w)+'</span>'; }).join(''):'<span class="muted small">Chạm đúng thứ tự từng từ để lát ván cầu…</span>')+'</div>'+
         '<div class="bank" style="position:static;margin-top:10px">'+pool.map(function(p,pi){ return '<button type="button" class="wchip'+(used[pi]?' used':'')+'" data-pi="'+pi+'"'+(used[pi]?' disabled':'')+'>'+esc(p.w)+'</button>'; }).join('')+'</div></div></div>';
       $$('.wchip[data-pi]',box).forEach(function(b){ b.onclick=function(){
         var pi=+b.dataset.pi, p=pool[pi], need=targetWords[picked.length];
-        if(p.w===need){
-          playChime(true); used[pi]=1; picked.push(p);
-          if(picked.length>=targetWords.length){ score+=15; k++; setTimeout(renderStep, 300); }
-          else draw();
-        } else {
-          playChime(false); hearts--;
-          if(hearts<=0){
-            modal('<h3>💔 Rớt cầu rồi!</h3><p>Con đã chọn sai thứ tự 3 lần. Làm lại từ đầu để nhớ mẫu câu nhé!</p>',[{label:'Chơi lại từ đầu →',value:true}]).then(function(){ mountSmfBridgeGame(sentences, box); });
-          } else {
-            toast('Chưa đúng thứ tự! Còn '+hearts+' ❤️');
-          }
-        }
+        if(p.w===need){ playChime(true); used[pi]=1; picked.push(p); if(picked.length>=targetWords.length){ score+=15; k++; setTimeout(renderStep, 300); } else draw(); }
+        else { playChime(false); hearts--; if(hearts<=0){ modal('<h3>💔 Rớt cầu rồi!</h3><p>Con đã chọn sai thứ tự 10 lần. Làm lại từ đầu để nhớ mẫu câu nhé!</p>',[{label:'Chơi lại từ đầu →',value:true}]).then(function(){ mountSmfBridgeGame(sentences, box); }); } else { toast('Chưa đúng thứ tự! Còn '+hearts+'/10 ❤️'); draw(); } }
       }; });
     }
     draw();
   }
   renderStep();
 }
-function renderSmfWorkspace(){
-  var a=W.a, st=S.student||{}, lvName=st.group||((st.levels||[st.level]).map(function(k){ return (LV[k]||{name:k}).name; }).join(', '));
-  var parsed=parseSmfLesson(a);
+function smfBuildSidebar(activeId, todo, done){
+  var st=S.student||{}, lvName=st.group||((st.levels||[st.level]).map(function(k){ return (LV[k]||{name:k}).name; }).join(', '));
   var inst=(BOOT.standalone && !pwaStandalone()) ? '<button class="btn sm soft" type="button" onclick="pwaInstall()" style="width:100%;margin-bottom:6px">📲 Cài app</button>' : '';
-  var side='<aside class="smf-side">'+
+  var todoHtml = todo.length ? todo.map(function(it){
+    var isOn = (S.tab==='todo' && activeId===it.id);
+    var sub = isOn ? '<div class="smf-sub">'+
+      '<button type="button" class="smf-btn'+(SMF_VIEW==='knowledge'?' on':'')+'" data-smf="knowledge">📖 Kiến thức đã học</button>'+
+      '<div class="smf-btn" style="cursor:default;font-size:13px;color:var(--muted)">🎮 Ôn tập (3 trò chơi)</div>'+
+      '<div class="smf-sub">'+
+        '<button type="button" class="smf-btn'+(SMF_VIEW==='g1'?' on':'')+'" data-smf="g1">🫧 Bắn bong bóng</button>'+
+        '<button type="button" class="smf-btn'+(SMF_VIEW==='g2'?' on':'')+'" data-smf="g2">🧩 Nối từ</button>'+
+        '<button type="button" class="smf-btn'+(SMF_VIEW==='g3'?' on':'')+'" data-smf="g3">🌉 Xây cầu</button>'+
+      '</div>'+
+      '<button type="button" class="smf-btn'+(SMF_VIEW==='work'?' on':'')+'" data-smf="work">✏️ Làm bài</button>'+
+    '</div>' : '';
+    return '<button type="button" class="smf-btn'+(isOn?' on':'')+'" data-smfopen="'+it.id+'">📘 '+esc(it.title)+'</button>'+sub;
+  }).join('') : '<div class="muted small" style="padding:6px 4px">🎉 Con đã làm hết bài rồi!</div>';
+  return '<aside class="smf-side">'+
     '<div class="smf-brand"><div class="logo">H</div><div><b style="font-size:16px">IELTS Hannah</b><small class="muted" style="display:block;font-size:12px">Bài tập về nhà</small></div></div>'+
     '<div class="smf-user"><b>'+esc(st.name||'Học viên')+'</b><small>'+esc(lvName)+'</small></div>'+
-    '<div class="smf-sec">1. Nhiệm vụ '+esc(parsed.session)+'</div>'+
-    '<button type="button" class="smf-btn'+(SMF_VIEW==='knowledge'?' on':'')+'" data-smf="knowledge">📖 1.1. Kiến thức đã học</button>'+
-    '<div class="smf-btn" style="cursor:default">🎮 1.2. Ôn tập (3 trò chơi)</div>'+
-    '<div class="smf-sub">'+
-      '<button type="button" class="smf-btn'+(SMF_VIEW==='g1'?' on':'')+'" data-smf="g1">🫧 Trò 1: Bắn bong bóng</button>'+
-      '<button type="button" class="smf-btn'+(SMF_VIEW==='g2'?' on':'')+'" data-smf="g2">🧩 Trò 2: Nối từ</button>'+
-      '<button type="button" class="smf-btn'+(SMF_VIEW==='g3'?' on':'')+'" data-smf="g3">🌉 Trò 3: Xây cầu</button>'+
-    '</div>'+
-    '<button type="button" class="smf-btn'+(SMF_VIEW==='work'?' on':'')+'" data-smf="work">✏️ 1.3. Làm bài</button>'+
-    '<div style="border-top:1.5px solid var(--line);margin-top:10px;padding-top:10px">'+inst+
-      '<button type="button" class="smf-btn" id="bk">← Danh sách bài</button>'+
+    '<div class="smf-sec">📚 Bài cần làm ('+todo.length+')</div>'+todoHtml+
+    '<div style="border-top:1.5px solid var(--line);margin-top:10px;padding-top:10px">'+
+      '<button type="button" class="smf-btn'+(S.tab==='done'?' on':'')+'" data-smftab="done">✅ Đã nộp ('+done.length+')</button>'+
+      '<button type="button" class="smf-btn'+(S.tab==='fc'?' on':'')+'" data-smftab="fc">🏅 Thành tích</button>'+
+      '<button type="button" class="smf-btn'+(S.tab==='prog'?' on':'')+'" data-smftab="prog">📈 Tiến độ</button>'+
+      inst+
       '<button type="button" class="smf-btn" id="smfOut">🚪 Đăng xuất</button>'+
     '</div></aside>';
-  var mainHtml='<div class="smf-main" id="smfMain"></div>';
-  $('#app').innerHTML='<div class="smf-shell">'+side+mainHtml+'</div>';
-  $('#bk').onclick=function(){ stopAllGames(); if(S.student) store('hw_open_'+S.student.id, null); renderHome(); };
+}
+function renderSmfHomeShell(todo, done){
+  var side=smfBuildSidebar(null, todo, done);
+  $('#app').innerHTML='<div class="smf-shell">'+side+'<div class="smf-main" id="smfMain"></div></div>';
   $('#smfOut').onclick=function(){ stopAllGames(); store('hw_student',null); loginCode(); };
+  $$('[data-smfopen]', $('#app')).forEach(function(b){ b.onclick=function(){ S.tab='todo'; openAssignment(b.dataset.smfopen); }; });
+  $$('[data-smftab]', $('#app')).forEach(function(b){ b.onclick=function(){ stopAllGames(); W=null; S.tab=b.dataset.smftab; renderHome(); }; });
+  var main=$('#smfMain');
+  if(S.tab==='fc'){ renderFC(main); return; }
+  if(S.tab==='prog'){ renderProgress(main); return; }
+  if(S.tab==='done'){
+    main.innerHTML = done.length ? done.map(hwCard).join('') : '<div class="card empty"><div class="e">📭</div>Chưa nộp bài nào.</div>';
+    $$('[data-open]',main).forEach(function(b){ b.onclick=function(){ openAssignment(b.dataset.open); }; });
+    return;
+  }
+  main.innerHTML='<div class="card empty"><div class="e">🎉</div>Con đã làm hết bài cần làm rồi, giỏi quá!</div>';
+}
+function renderSmfWorkspace(){
+  var a=W.a, h=S.home||{assignments:[]};
+  var todo=h.assignments.filter(function(x){ return !hwDone(x); });
+  var done=h.assignments.filter(function(x){ return hwDone(x); });
+  var parsed=parseSmfLesson(a);
+  S.tab='todo';
+  var side=smfBuildSidebar(a.id, todo, done);
+  $('#app').innerHTML='<div class="smf-shell">'+side+'<div class="smf-main" id="smfMain"></div></div>';
+  $('#smfOut').onclick=function(){ stopAllGames(); store('hw_student',null); loginCode(); };
+  $$('[data-smfopen]', $('#app')).forEach(function(b){ b.onclick=function(){ if(b.dataset.smfopen!==a.id) openAssignment(b.dataset.smfopen); }; });
+  $$('[data-smftab]', $('#app')).forEach(function(b){ b.onclick=function(){ stopAllGames(); W=null; S.tab=b.dataset.smftab; renderHome(); }; });
   $$('[data-smf]', $('#app')).forEach(function(b){ b.onclick=function(){ SMF_VIEW=b.dataset.smf; renderSmfWorkspace(); }; });
   var main=$('#smfMain');
   if(SMF_VIEW==='knowledge'){
@@ -2639,7 +2624,6 @@ function renderSmfWorkspace(){
   if(SMF_VIEW==='g1'){ mountSmfBubbleGame(parsed.vocab, main); return; }
   if(SMF_VIEW==='g2'){ mountSmfMatchGame(parsed.vocab, main); return; }
   if(SMF_VIEW==='g3'){ mountSmfBridgeGame(parsed.sentences, main); return; }
-  // 1.3 Làm bài: giữ giao diện làm bài cũ, phần 1 chỉ ghi âm câu trả lời
   var wHtml='<h2 style="margin-top:0">'+esc(a.title)+'</h2>'+
     '<div class="chips" style="margin:6px 0 12px">'+(a.dueDate?'<span class="chip">⏰ Hạn '+fmtDue(a.dueDate)+'</span>':'')+
       (W.prev?'<span class="chip ok">Đã nộp '+W.prev.attempts+' lần · nộp lại sẽ thay bài cũ</span>':'')+'</div>';
