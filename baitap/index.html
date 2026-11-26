@@ -2343,6 +2343,10 @@ function renderHome(){
     if(!W && S.tab==='todo' && todo.length){ openAssignment(todo[0].id); return; }
     renderSmfHomeShell(todo, done); return;
   }
+  if(isKidsClass()){
+    if(!W && S.tab==='todo' && todo.length){ openAssignment(todo[0].id); return; }
+    renderKidsHomeShell(todo, done); return;
+  }
   var list = S.tab==='todo'?todo:done;
   var kids = isKidsClass();
   var todoBody = '';
@@ -2648,8 +2652,134 @@ function renderSmfWorkspace(){
   updateProgress();
 }
 
+/* ---------- Super Kids / Happy Kids: Thanh dọc Parroto + 2 Game + Làm bài ---------- */
+var KIDS_VIEW = 'knowledge'; // 'knowledge' | 'work' | 'hub'
+function launchKidsGame(which, afterDone){
+  api('api_fcToday', S.student.id).then(function(d){
+    S.fc=d;
+    var mon=detectKidsMonth(), ph=SYLLABUS_PHONICS[mon]||SYLLABUS_PHONICS[1];
+    var cards=(d&&d.cards&&d.cards.length)?d.cards:[];
+    if(!cards.length) cards=ph.words.slice(0,6).map(function(w){ return {w:w, vi:'', e:WORD_EMOJI[w.toLowerCase()]||'⭐'}; });
+    var scene=detectVocabScene(cards);
+    if(which===1){
+      kidsGameVocab(cards, scene, function(sec){
+        var st=getKidsGameState(); st.g1Sec=sec; saveKidsGameState(st);
+        try{ api('api_fcSave', S.student.id, cards.slice(0,6).map(function(c){ return {w:c.w, ok:true}; }), 6); }catch(e){}
+        if(afterDone) afterDone();
+      });
+    } else {
+      kidsGamePhonics(mon, function(sec){
+        var st=getKidsGameState(); st.g2Sec=sec; saveKidsGameState(st);
+        if(afterDone) afterDone();
+      });
+    }
+  }).catch(function(){ toast('Chưa tải được dữ liệu game, con thử lại nhé!'); });
+}
+function kidsBuildSidebar(activeId, todo, done){
+  var st=S.student||{}, lvName=st.group||((st.levels||[st.level]).map(function(k){ return (LV[k]||{name:k}).name; }).join(', '));
+  var inst=(BOOT.standalone && !pwaStandalone()) ? '<button class="btn sm soft" type="button" onclick="pwaInstall()" style="width:100%;margin-bottom:6px">📲 Cài app</button>' : '';
+  var todoHtml = todo.length ? todo.map(function(it){
+    var isOn = (S.tab==='todo' && activeId===it.id && KIDS_VIEW!=='hub');
+    var sub = isOn ? '<div class="smf-sub">'+
+      '<button type="button" class="smf-btn'+(KIDS_VIEW==='knowledge'?' on':'')+'" data-kidsv="knowledge">📖 Kiến thức đã học</button>'+
+      '<button type="button" class="smf-btn'+(KIDS_VIEW==='work'?' on':'')+'" data-kidsv="work">✏️ Làm bài</button>'+
+    '</div>' : '';
+    return '<button type="button" class="smf-btn'+(isOn?' on':'')+'" data-kidsopen="'+it.id+'">📘 '+esc(it.title)+'</button>'+sub;
+  }).join('') : '<div class="muted small" style="padding:6px 4px">🎉 Con đã làm hết bài rồi!</div>';
+  return '<aside class="smf-side">'+
+    '<div class="smf-brand"><div class="logo">H</div><div><b style="font-size:16px">IELTS Hannah</b><small class="muted" style="display:block;font-size:12px">Bài tập về nhà</small></div></div>'+
+    '<div class="smf-user"><b>'+esc(st.name||'Học viên')+'</b><small>'+esc(lvName)+'</small></div>'+
+    '<div class="smf-sec">🎮 Chơi game ôn tập</div>'+
+    '<button type="button" class="smf-btn'+(KIDS_VIEW==='hub'&&S.tab==='todo'?' on':'')+'" data-kidsv="hub">🏆 Xem ai chơi giỏi hơn?</button>'+
+    '<button type="button" class="smf-btn" id="kidsG1">🕵️ Trò 1: Tìm từ vựng 3D</button>'+
+    '<button type="button" class="smf-btn" id="kidsG2">🎤 Trò 2: Đua phát âm</button>'+
+    '<div class="smf-sec">📚 Xem ai học giỏi hơn? ('+todo.length+')</div>'+todoHtml+
+    '<div style="border-top:1.5px solid var(--line);margin-top:10px;padding-top:10px">'+
+      '<button type="button" class="smf-btn'+(S.tab==='done'?' on':'')+'" data-kidstab="done">✅ Đã nộp ('+done.length+')</button>'+
+      '<button type="button" class="smf-btn'+(S.tab==='fc'?' on':'')+'" data-kidstab="fc">🏅 Thành tích</button>'+
+      '<button type="button" class="smf-btn'+(S.tab==='prog'?' on':'')+'" data-kidstab="prog">📈 Tiến độ</button>'+
+      inst+
+      '<button type="button" class="smf-btn" id="kidsOut">🚪 Đăng xuất</button>'+
+    '</div></aside>';
+}
+function kidsBindSidebar(todo, activeId){
+  $('#kidsOut').onclick=function(){ stopAllGames(); store('hw_student',null); loginCode(); };
+  $$('[data-kidsopen]', $('#app')).forEach(function(b){ b.onclick=function(){
+    S.tab='todo';
+    if(b.dataset.kidsopen!==activeId) openAssignment(b.dataset.kidsopen);
+    else { KIDS_VIEW=(W&&W.a&&W.a.description)?'knowledge':'work'; renderKidsWorkspace(); }
+  }; });
+  $$('[data-kidstab]', $('#app')).forEach(function(b){ b.onclick=function(){ stopAllGames(); W=null; S.tab=b.dataset.kidstab; renderHome(); }; });
+  $('#kidsG1').onclick=function(){ launchKidsGame(1, function(){ KIDS_VIEW='hub'; if(W) renderKidsWorkspace(); else renderKidsHomeShell((S.home&&S.home.assignments||[]).filter(function(x){return !hwDone(x);}), (S.home&&S.home.assignments||[]).filter(hwDone)); }); };
+  $('#kidsG2').onclick=function(){ launchKidsGame(2, function(){ KIDS_VIEW='hub'; if(W) renderKidsWorkspace(); else renderKidsHomeShell((S.home&&S.home.assignments||[]).filter(function(x){return !hwDone(x);}), (S.home&&S.home.assignments||[]).filter(hwDone)); }); };
+}
+function renderKidsHomeShell(todo, done){
+  if(S.tab==='todo') KIDS_VIEW='hub';
+  var side=kidsBuildSidebar(null, todo, done);
+  $('#app').innerHTML='<div class="smf-shell">'+side+'<div class="smf-main" id="smfMain"></div></div>';
+  kidsBindSidebar(todo, null);
+  $$('[data-kidsv]', $('#app')).forEach(function(b){ b.onclick=function(){
+    if(b.dataset.kidsv==='hub'){ S.tab='todo'; KIDS_VIEW='hub'; renderKidsHomeShell(todo, done); }
+  }; });
+  var main=$('#smfMain');
+  if(S.tab==='fc'){ renderFC(main); return; }
+  if(S.tab==='prog'){ renderProgress(main); return; }
+  if(S.tab==='done'){
+    main.innerHTML = done.length ? done.map(hwCard).join('') : '<div class="card empty"><div class="e">📭</div>Chưa nộp bài nào.</div>';
+    $$('[data-open]',main).forEach(function(b){ b.onclick=function(){ openAssignment(b.dataset.open); }; });
+    return;
+  }
+  renderKidsGamesHub(main);
+}
+function renderKidsWorkspace(){
+  var a=W.a, h=S.home||{assignments:[]};
+  var todo=h.assignments.filter(function(x){ return !hwDone(x); });
+  var done=h.assignments.filter(function(x){ return hwDone(x); });
+  S.tab='todo';
+  var side=kidsBuildSidebar(a.id, todo, done);
+  $('#app').innerHTML='<div class="smf-shell">'+side+'<div class="smf-main" id="smfMain"></div></div>';
+  kidsBindSidebar(todo, a.id);
+  $$('[data-kidsv]', $('#app')).forEach(function(b){ b.onclick=function(){ KIDS_VIEW=b.dataset.kidsv; renderKidsWorkspace(); }; });
+  var main=$('#smfMain');
+  if(KIDS_VIEW==='hub'){ renderKidsGamesHub(main); return; }
+  if(KIDS_VIEW==='knowledge'){
+    main.innerHTML='<div class="card"><h2 style="margin-top:0">'+esc(a.title)+'</h2>'+
+      (a.description?'<div class="rich">'+rich(a.description).replace(/\n/g,'<br>')+'</div>':'<p class="muted">Con bấm nút bên dưới để vào làm bài tập về nhà nhé!</p>')+
+      '<div class="row" style="margin-top:14px"><button class="btn" id="kidsGoWork">✏️ Vào làm bài ngay →</button><button class="btn soft" id="kidsGoHub">🎮 Xem game & xếp hạng</button></div></div>';
+    $('#kidsGoWork',main).onclick=function(){ KIDS_VIEW='work'; renderKidsWorkspace(); };
+    $('#kidsGoHub',main).onclick=function(){ KIDS_VIEW='hub'; renderKidsWorkspace(); };
+    return;
+  }
+  var wHtml='<div class="kids-work"><div class="kg-head hw"><div class="ic">📚</div><div><b>Xem ai học giỏi hơn nào?</b><small>Hoàn thành bài tập về nhà bên dưới để nhận điểm cao từ cô Hannah!</small></div></div>'+
+    '<h2 style="margin-top:0">'+esc(a.title)+'</h2>'+
+    '<div class="chips" style="margin:6px 0 12px">'+(a.dueDate?'<span class="chip">⏰ Hạn '+fmtDue(a.dueDate)+'</span>':'')+
+      (W.prev?'<span class="chip ok">Đã nộp '+W.prev.attempts+' lần · nộp lại sẽ thay bài cũ</span>':'')+'</div>';
+  if(inAppBrowser()) wHtml+='<div class="card" style="background:#FFF6E2"><b>📱 Ba mẹ lưu ý:</b> link đang mở trong Zalo/Messenger nên loa và micro có thể không chạy. Bấm <b>⋮</b> hoặc <b>⋯</b> ở góc trên → <b>Mở bằng trình duyệt</b> (Safari/Chrome) để con làm bài tốt nhất nhé.</div>';
+  if(a.links.length){
+    wHtml+='<div class="card"><div class="sechead"><div class="secnum">🔗</div><h3 style="margin:0">Bài tập trên trang khác</h3></div>'+
+      a.links.map(function(l,i){ return '<div class="linkitem"><input type="checkbox" class="chk" data-lk="'+i+'"'+(W.linksDone[i]?' checked':'')+'><div class="t">'+esc(l.label||l.url)+'</div><a class="btn sm soft" href="'+esc(l.url)+'" target="_blank" rel="noopener">Mở</a></div>'; }).join('')+'</div>';
+  }
+  a.activities.forEach(function(act,i){
+    var k=KINDS[act.type]||{label:act.type,icon:'•'};
+    wHtml+='<div class="card" id="act'+i+'"><div class="sechead"><div class="secnum">'+(i+1)+'</div><div><h3 style="margin:0">'+esc(act.title||k.label)+'</h3><div class="muted small">'+k.icon+' '+k.label+'</div></div></div><div class="actbody"></div></div>';
+  });
+  if(!a.activities.length && !a.links.length) wHtml+='<div class="card empty">Bài này chưa có nội dung.</div>';
+  wHtml+='<div class="submitbar"><div class="in"><div class="prog"><i id="pg"></i></div><button class="btn lg accent" id="submit">Nộp bài</button></div></div></div>';
+  main.innerHTML=wHtml;
+  $$('[data-lk]',main).forEach(function(c){ c.onchange=function(){ W.linksDone[+c.dataset.lk]=c.checked; updateProgress(); }; });
+  a.activities.forEach(function(act,i){
+    var body=$('#act'+i+' .actbody');
+    var R={mcq:mountKidsMcqGame,match:mountMatch,fill:mountFill,flying:mountFlying,speaking:mountSpeaking,writing:mountWriting,say:mountSay,typein:mountTypein,order:mountKidsOrderGame,photo:mountPhoto,dict:mountDict,ext99:mountExt,extee:mountExt,extlr:mountExt}[act.type];
+    if(R) R(act,i,body);
+  });
+  $('#submit').onclick=trySubmit;
+  updateProgress();
+  window.scrollTo(0,0);
+}
+
 function renderWork(){
   if(isSmfClass()){ SMF_VIEW='knowledge'; renderSmfWorkspace(); return; }
+  if(isKidsClass()){ KIDS_VIEW=(W.a&&W.a.description)?'knowledge':'work'; renderKidsWorkspace(); return; }
   var a=W.a;
   var html = header()+'<button class="link" id="bk">← Danh sách bài</button>'+
     '<h2>'+esc(a.title)+'</h2>'+
