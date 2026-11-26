@@ -2249,41 +2249,50 @@ function kidsGamePhonics(defaultMon, onDone){
       if(ended) return;
       if(listening && curStop){ curStop(); return; }
       var g=gates[idx]; if(!g) return;
-      var Rec=(!isAndroid() && SAY_SR_OK)?SR():null;
-      listening=true; $('#kpmic').classList.add('on'); $('#kpgo').textContent='■ Đang nghe…';
+      var Rec=(!isAndroid() && !g.isSound && SAY_SR_OK)?SR():null;
+      listening=true; $('#kpmic').classList.add('on'); $('#kpgo').textContent='■ Bấm xong khi đọc xong';
       $('#kpheard').textContent='Đang lắng nghe con đọc “'+(g.isSound?'/'+g.txt+'/':g.txt)+'”…';
       if(Rec){
         var r=new Rec(), done=false, heard=[];
         r.lang='en-US'; r.interimResults=true; r.maxAlternatives=5;
         curStop=function(){ if(!done){ done=true; try{ r.stop(); }catch(e){} } listening=false; $('#kpmic').classList.remove('on'); $('#kpgo').textContent='🎤 Bấm để đọc'; };
-        r.onresult=function(e){
-          for(var x=0;x<e.results.length;x++) for(var y=0;y<e.results[x].length;y++) heard.push(e.results[x][y].transcript);
-          if(matchPhonics(g, heard)){ done=true; try{ r.stop(); }catch(e){} listening=false; $('#kpmic').classList.remove('on'); $('#kpgo').textContent='🎤 Bấm để đọc'; passGate(); }
-        };
+        r.onresult=function(e){ for(var x=0;x<e.results.length;x++) for(var y=0;y<e.results[x].length;y++) heard.push(e.results[x][y].transcript); if(matchPhonics(g, heard)){ done=true; try{ r.stop(); }catch(e){} listening=false; $('#kpmic').classList.remove('on'); $('#kpgo').textContent='🎤 Bấm để đọc'; passGate(); } };
         r.onerror=function(){ curStop(); $('#kpheard').innerHTML='<span class="err">Chưa nghe rõ, con bấm 🎤 đọc lại hoặc kiểm tra micro nhé.</span>'; };
         r.onend=function(){ if(!done){ listening=false; $('#kpmic').classList.remove('on'); $('#kpgo').textContent='🎤 Bấm để đọc'; if(heard.length) failGate(heard[0]); else $('#kpheard').textContent='Con bấm 🎤 và đọc to hơn nhé!'; } };
         try{ r.start(); }catch(e){ curStop(); }
       } else {
         if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){
           listening=false; $('#kpmic').classList.remove('on'); $('#kpgo').textContent='🎤 Bấm để đọc';
-          $('#kpheard').innerHTML='<span class="err">Trình duyệt đang chặn micro (Zalo/Messenger). Con mở bằng Chrome/Safari để chơi nhé!</span>';
-          return;
+          $('#kpheard').innerHTML='<span class="err">Trình duyệt đang chặn micro (Zalo/Messenger). Con mở bằng Chrome/Safari để chơi nhé!</span>'; return;
         }
         navigator.mediaDevices.getUserMedia({audio:true}).then(function(st){
-          var mr=newRecorder(st), chunks=[], stopped=false;
+          var mr=newRecorder(st), chunks=[], stopped=false, peak=0, ac=null, ivLv=null;
+          try{
+            var AC=window.AudioContext||window.webkitAudioContext;
+            if(AC){
+              ac=new AC(); var src=ac.createMediaStreamSource(st), an=ac.createAnalyser(); an.fftSize=256; src.connect(an);
+              var buf=new Uint8Array(an.frequencyBinCount);
+              ivLv=setInterval(function(){
+                an.getByteTimeDomainData(buf); var mx=0;
+                for(var bi=0;bi<buf.length;bi++){ var v=Math.abs(buf[bi]-128); if(v>mx) mx=v; }
+                if(mx>peak) peak=mx;
+                $('#kpheard').textContent='🎙️ Đang thu âm… '+(mx>6?'🔊 Nghe rõ tiếng con!':'(Con đọc to lên nhé)');
+              }, 120);
+            }
+          }catch(e){}
           mr.ondataavailable=function(e){ if(e.data&&e.data.size) chunks.push(e.data); };
           var finishRec=function(){
             if(stopped) return; stopped=true;
-            listening=false; $('#kpmic').classList.remove('on'); $('#kpgo').textContent='🎤 Đang chấm…'; $('#kpgo').disabled=true;
+            if(ivLv) clearInterval(ivLv); try{ ac&&ac.close(); }catch(e){}
+            listening=false; $('#kpmic').classList.remove('on'); $('#kpgo').textContent='🤖 AI đang chấm…'; $('#kpgo').disabled=true;
             st.getTracks().forEach(function(t){ t.stop(); });
+            if(peak<4){ $('#kpgo').disabled=false; $('#kpgo').textContent='🎤 Bấm để đọc'; $('#kpheard').innerHTML='<span class="err">Chưa nghe thấy tiếng! Con nói to gần micro hơn nhé.</span>'; return; }
             var blob=new Blob(chunks,{type:mr.mimeType||'audio/webm'});
+            var tgts=g.isSound?(PHONICS_ACCEPT[g.txt.toLowerCase()]||[g.txt]):[g.txt];
             toWav(blob).then(function(w){ var b=w||blob; return blobToB64(b).then(function(d){ return {data:d,mime:w?'audio/wav':(blob.type||'audio/webm').split(';')[0]}; }); })
-              .then(function(au){ return api('api_scoreSay',{targets:[g.txt],mime:au.mime,data:au.data}); })
-              .then(function(res){
-                $('#kpgo').disabled=false; $('#kpgo').textContent='🎤 Bấm để đọc';
-                if(res && (res.credit>=0.5 || matchPhonics(g, [res.heard||'']))) passGate();
-                else failGate((res&&res.heard)||'');
-              }).catch(function(){ $('#kpgo').disabled=false; $('#kpgo').textContent='🎤 Bấm để đọc'; $('#kpheard').textContent='Con bấm 🎤 đọc lại nhé!'; });
+              .then(function(au){ return api('api_scoreSay',{targets:tgts,mime:au.mime,data:au.data}); })
+              .then(function(res){ $('#kpgo').disabled=false; $('#kpgo').textContent='🎤 Bấm để đọc'; if(res && (res.credit>=0.4 || matchPhonics(g, [res.heard||'']))) passGate(); else failGate((res&&res.heard)||''); })
+              .catch(function(){ $('#kpgo').disabled=false; $('#kpgo').textContent='🎤 Bấm để đọc'; if(g.isSound && peak>=10) passGate(); else $('#kpheard').textContent='Con bấm 🎤 đọc lại nhé!'; });
           };
           curStop=function(){ if(mr.state!=='inactive') mr.stop(); };
           mr.onstop=finishRec;
