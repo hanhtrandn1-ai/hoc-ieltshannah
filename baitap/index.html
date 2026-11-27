@@ -2369,7 +2369,7 @@ function kidsGamePhonics(defaultMon, onDone){
       if(ended) return;
       if(listening && curStop){ curStop(); return; }
       var g=gates[idx]; if(!g) return;
-      var Rec=(!isAndroid() && !g.isSound && SAY_SR_OK)?SR():null;
+      var Rec=(!isAndroid() && !pwaIOS() && !pwaStandalone() && !g.isSound && SAY_SR_OK)?SR():null;
       listening=true; $('#kpmic').classList.add('on'); $('#kpgo').textContent='■ Bấm xong khi đọc xong';
       $('#kpheard').textContent='Đang lắng nghe con đọc “'+(g.isSound?'/'+g.txt+'/':g.txt)+'”…';
       if(Rec){
@@ -2416,11 +2416,11 @@ function kidsGamePhonics(defaultMon, onDone){
           };
           curStop=function(){ if(mr.state!=='inactive') mr.stop(); };
           mr.onstop=finishRec;
-          mr.start(250);
+          startRecorderSafe(mr);
           setTimeout(function(){ if(!stopped && mr.state!=='inactive') mr.stop(); }, 2200);
-        }).catch(function(){
+        }).catch(function(err){
           listening=false; $('#kpmic').classList.remove('on'); $('#kpgo').textContent='🎤 Bấm để đọc';
-          $('#kpheard').innerHTML='<span class="err">Chưa bật được micro. Con cấp quyền micro cho trình duyệt rồi thử lại nhé!</span>';
+          $('#kpheard').innerHTML='<span class="err">'+micErrorMsg(err)+'</span>';
         });
       }
     };
@@ -3162,6 +3162,17 @@ function mountFlying(act,i,el){
 
 /* Ghi âm */
 function isAndroid(){ return /Android/i.test(navigator.userAgent||''); }
+function startRecorderSafe(mr){
+  try{ mr.start(250); }catch(e){ mr.start(); }
+}
+function micErrorMsg(err){
+  var nm=(err&&err.name)||'';
+  if(inAppBrowser()) return 'Link đang mở trong Zalo/Messenger nên bị chặn micro. Ba mẹ bấm <b>⋮</b> hoặc <b>⋯</b> → <b>Mở bằng trình duyệt</b> ('+(pwaIOS()?'Safari':'Chrome')+'), hoặc dùng nút <b>🎥 Quay video</b> bên dưới.';
+  if(nm==='NotAllowedError'||nm==='PermissionDeniedError') return 'Micro đang bị tắt quyền. Ba mẹ vào <b>Cài đặt điện thoại → Ứng dụng → Micro → Bật cho '+(pwaIOS()?'Safari':'Chrome / IELTS Hannah')+'</b>, rồi bấm thử lại (hoặc dùng <b>🎥 Quay video</b>).';
+  if(nm==='NotReadableError'||nm==='TrackStartError') return 'Micro đang bận (app khác như Zalo/Zoom/cuộc gọi đang dùng). Ba mẹ tắt app khác rồi bấm thử lại nhé!';
+  if(nm==='NotFoundError'||nm==='DevicesNotFoundError') return 'Không tìm thấy micro trên máy. Ba mẹ thử cắm tai nghe hoặc dùng nút <b>🎥 Quay video</b> bên dưới nhé!';
+  return 'Chưa mở được micro'+(nm?' ('+esc(nm)+')':'')+'. Ba mẹ bấm thử lại hoặc dùng nút <b>🎥 Quay video</b> bên dưới nhé!';
+}
 function newRecorder(stream){
   var mime=pickMime();
   if(mime){ try{ return new MediaRecorder(stream,{mimeType:mime}); }catch(e){} }
@@ -3197,7 +3208,7 @@ function mountSpeaking(act,i,el){
     if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){
       stEl.innerHTML='<span class="err">Máy/trình duyệt này không ghi âm trực tiếp được. Con bấm nút <b>🎥 Quay video bằng điện thoại</b> bên dưới nhé.</span>'; return;
     }
-    var gumDone=false, gumT=setTimeout(function(){ if(!gumDone){ gumDone=true; stEl.innerHTML='<span class="err">Micro không phản hồi. Con bấm <b>🎥 Quay video bằng điện thoại</b> bên dưới nhé.</span>'; } },8000);
+    var gumDone=false, gumT=setTimeout(function(){ if(!gumDone){ gumDone=true; stEl.innerHTML='<span class="err">Micro không phản hồi. Con bấm <b>🎥 Quay video bằng điện thoại</b> bên dưới nhé.</span>'; } },15000);
     navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
       if(gumDone){ stream.getTracks().forEach(function(t){t.stop();}); return; } gumDone=true; clearTimeout(gumT);
       var mr=newRecorder(stream), mime=mr.mimeType||pickMime();
@@ -3209,12 +3220,12 @@ function mountSpeaking(act,i,el){
         if(!blob.size){ stEl.innerHTML='<span class="err">Chưa thu được tiếng. Con thử lại hoặc bấm <b>🎥 Quay video</b> bên dưới nhé.</span>'; return; }
         setRec(k,blob);
       };
-      mr.start(250); b.classList.add('on'); b.textContent='■';
+      startRecorderSafe(mr); b.classList.add('on'); b.textContent='■';
       cur={k:k,stop:function(){ if(mr.state!=='inactive') mr.stop(); }};
       tm=setInterval(function(){ var s=Math.floor((Date.now()-t0)/1000); stEl.innerHTML='<b style="color:var(--bad)">● Đang ghi '+s+'s</b> · bấm ■ để dừng'; if(s>=max) cur&&cur.stop(); },250);
-    }).catch(function(){
+    }).catch(function(err){
       if(gumDone) return; gumDone=true; clearTimeout(gumT);
-      stEl.innerHTML='<span class="err">Ở đây chưa dùng được micro. Con bấm <b>🎥 Quay video bằng điện thoại</b> bên dưới (quay mình đang nói là được).</span>';
+      stEl.innerHTML='<span class="err">'+micErrorMsg(err)+'</span>';
     });
   }; });
   $$('input[type=file]',el).forEach(function(inp){
@@ -3314,9 +3325,10 @@ function mountSay(act,i,el){
     if(cur && cur.k===k){ cur.stop(); return; }
     if(cur){ toast('Finish the other sentence first / Con bấm dừng câu đang nói trước nhé'); return; }
     try{ speechSynthesis.cancel(); }catch(e){}
-    var Rec=(SAY_SR_OK && !isAndroid())?SR():null, chunks=[], mr=null, stream=null, heard=[], finished=false, srOn=false;
+    var Rec=(SAY_SR_OK && !isAndroid() && !pwaIOS() && !pwaStandalone())?SR():null, chunks=[], mr=null, stream=null, heard=[], finished=false, srOn=false, recTm=null;
     function finish(){
       if(finished) return; finished=true;
+      if(recTm) clearInterval(recTm);
       b.classList.remove('on'); b.textContent='🎤';
       var gone=false;
       var go=function(){
@@ -3345,24 +3357,33 @@ function mountSay(act,i,el){
     cur={k:k, stop:finish};
     var t0=Date.now(), tm=setInterval(function(){ if(finished){ clearInterval(tm); return; } if(Date.now()-t0>15000) cur&&cur.stop(); if(Date.now()-t0>18000) finish(); },500);
     /* Zalo/Messenger chặn micro → cho bé quay video ngắn (máy nào cũng quay được), AI nghe tiếng trong video để chấm */
-    function noMic(){
-      finished=true; clearInterval(tm); cur=null; b.classList.remove('on'); b.textContent='🎤';
+    function noMic(err){
+      finished=true; clearInterval(tm); if(recTm) clearInterval(recTm); cur=null; b.classList.remove('on'); b.textContent='🎤';
       var box=$('#say'+i+'_'+k);
-      $('.fb2',box).innerHTML='<div class="small" style="margin-top:8px">Micro is blocked here. Tap 🎥, film yourself saying the sentence, then tap “Use video”. / <i>Ở đây micro bị chặn. Con bấm 🎥, quay mình nói câu này rồi bấm “Dùng video”.</i></div>'+
-        '<label class="btn sm soft" style="margin-top:6px;display:inline-block">🎥 Quay / Record<input type="file" accept="video/*,audio/*" capture="user" style="display:none"></label>';
+      $('.fb2',box).innerHTML='<div class="small err" style="margin-top:8px">'+micErrorMsg(err)+'</div>'+
+        '<div class="row" style="margin-top:6px"><button type="button" class="btn sm plain retry-mic">🔄 Thử lại micro</button>'+
+        '<label class="btn sm soft" style="display:inline-block">🎥 Quay / Record<input type="file" accept="video/*,audio/*" capture="user" style="display:none"></label></div>';
+      $('.retry-mic',box).onclick=function(){ b.click(); };
       $('input',box).onchange=function(){ var f=this.files&&this.files[0]; if(!f) return;
         if(f.size>25*1024*1024){ toast('Video dài quá, con quay ngắn thôi nhé (dưới 15 giây).'); return; }
         aiScore(k, f); };
     }
     var startRec=function(){
-      if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){ noMic(); return; }
-      var gd=false, gt=setTimeout(function(){ if(!gd){ gd=true; noMic(); } },7000);
+      var box=$('#say'+i+'_'+k);
+      if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){ noMic({name:'NotSupported'}); return; }
+      $('.fb2',box).innerHTML='<div class="small muted" style="margin-top:8px">🎙️ Đang mở micro… (bấm <b>Cho phép / Allow</b> nếu máy hỏi nhé)</div>';
+      var gd=false, gt=setTimeout(function(){ if(!gd){ gd=true; noMic({name:'Timeout'}); } },15000);
       navigator.mediaDevices.getUserMedia({audio:true}).then(function(st){
         if(gd){ st.getTracks().forEach(function(t){ t.stop(); }); return; } gd=true; clearTimeout(gt);
-        stream=st; mr=newRecorder(st);
-        mr.ondataavailable=function(e){ if(e.data&&e.data.size) chunks.push(e.data); };
-        mr.start(250); startSR();
-      }).catch(function(){ if(gd) return; gd=true; clearTimeout(gt); noMic(); });
+        try{
+          stream=st; mr=newRecorder(st);
+          mr.ondataavailable=function(e){ if(e.data&&e.data.size) chunks.push(e.data); };
+          startRecorderSafe(mr); startSR();
+          var rt0=Date.now();
+          $('.fb2',box).innerHTML='<div class="small" style="margin-top:8px;color:var(--bad)"><b>🔴 Đang ghi âm… 0s</b> · Con nói xong bấm <b>■</b> để dừng</div>';
+          recTm=setInterval(function(){ if(finished){ clearInterval(recTm); return; } var s=Math.floor((Date.now()-rt0)/1000); $('.fb2',box).innerHTML='<div class="small" style="margin-top:8px;color:var(--bad)"><b>🔴 Đang ghi âm… '+s+'s</b> · Con nói xong bấm <b>■</b> để dừng</div>'; }, 500);
+        }catch(e){ st.getTracks().forEach(function(t){ t.stop(); }); noMic(e); }
+      }).catch(function(err){ if(gd) return; gd=true; clearTimeout(gt); noMic(err); });
     };
     startRec();
   }; });
