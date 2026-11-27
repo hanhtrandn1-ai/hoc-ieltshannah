@@ -3325,10 +3325,12 @@ function mountSay(act,i,el){
     if(cur && cur.k===k){ cur.stop(); return; }
     if(cur){ toast('Finish the other sentence first / Con bấm dừng câu đang nói trước nhé'); return; }
     try{ speechSynthesis.cancel(); }catch(e){}
-    var Rec=(SAY_SR_OK && !isAndroid() && !pwaIOS() && !pwaStandalone())?SR():null, chunks=[], mr=null, stream=null, heard=[], finished=false, srOn=false, recTm=null;
+    var chunks=[], mr=null, stream=null, finished=false, recTm=null, peak=0, ac=null, ivLv=null;
+    function stopMeter(){ if(ivLv){ clearInterval(ivLv); ivLv=null; } try{ ac&&ac.close(); }catch(e){} ac=null; }
     function finish(){
       if(finished) return; finished=true;
       if(recTm) clearInterval(recTm);
+      stopMeter();
       b.classList.remove('on'); b.textContent='🎤';
       var gone=false;
       var go=function(){
@@ -3336,34 +3338,43 @@ function mountSay(act,i,el){
         var blob=chunks.length?new Blob(chunks,{type:(mr&&mr.mimeType)||'audio/webm'}):null;
         if(stream) stream.getTracks().forEach(function(t){ t.stop(); });
         cur=null;
-        if(heard.length) show(k, scoreSpeech(it.target, heard), blob);
-        else if(srOn && !blob) show(k, {credit:0, marks:speechWords(it.target[0]).map(function(w){ return {w:w==='*'?'…':w, s:'no'}; }), heard:''}, null);
-        else aiScore(k, blob);
+        if(peak>0 && peak<3){
+          var box=$('#say'+i+'_'+k);
+          $('.fb2',box).innerHTML='<div class="small err" style="margin-top:8px">⚠️ Micro chưa thu được tiếng nào (có thể micro máy đang tắt/nhỏ). Con kiểm tra micro rồi bấm 🎤 nói lại, hoặc chọn cách bên dưới:</div>'+
+            '<div class="row" style="margin-top:6px"><label class="btn sm soft" style="display:inline-block">🎥 Quay / Chọn video<input type="file" accept="video/*,audio/*" capture="user" style="display:none"></label><button type="button" class="btn sm plain type-ans">⌨️ Gõ câu trả lời</button></div>';
+          $('input',box).onchange=function(){ var f=this.files&&this.files[0]; if(!f) return; aiScore(k, f); };
+          $('.type-ans',box).onclick=function(){ openTypeFallback(k); };
+          return;
+        }
+        aiScore(k, blob);
       };
       if(mr && mr.state!=='inactive'){ mr.onstop=go; try{ mr.stop(); }catch(e){ go(); } setTimeout(go,1500); } else go();
     }
-    function startSR(){
-      if(!Rec) return;
-      try{
-        var r=new Rec(); r.lang='en-US'; r.interimResults=false; r.maxAlternatives=5; r.continuous=false;
-        r.onresult=function(e){ for(var x=0;x<e.results.length;x++) for(var y=0;y<e.results[x].length;y++) heard.push(e.results[x][y].transcript); };
-        r.onerror=function(e){ if(e.error==='not-allowed'||e.error==='service-not-allowed'||e.error==='audio-capture'||e.error==='network') SAY_SR_OK=false; };
-        r.onend=function(){ setTimeout(finish,150); };
-        r.start(); srOn=true;
-        cur.stop=function(){ try{ r.stop(); }catch(e){} setTimeout(finish,1200); };
-      }catch(e){ srOn=false; }
+    function openTypeFallback(idx){
+      var box=$('#say'+i+'_'+idx), ans=W.answers[i];
+      $('.fb2',box).innerHTML='<div class="row" style="margin-top:8px;gap:6px"><input type="text" class="say-txt" placeholder="Gõ câu trả lời tiếng Anh của con…" style="flex:1;min-width:160px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px"><button type="button" class="btn sm save-txt">Lưu câu trả lời</button></div>';
+      var inp=$('.say-txt',box); inp.focus();
+      $('.save-txt',box).onclick=function(){
+        var v=(inp.value||'').trim(); if(!v){ toast('Con gõ câu trả lời trước nhé!'); return; }
+        ans.tried[idx]=true; ans.scores[idx]=null; ans.heard[idx]='[Gõ tay] '+v; ans.marks[idx]=null;
+        $('.fb2',box).innerHTML='<div class="small" style="margin-top:8px"><span class="chip ok">✔ Đã lưu câu trả lời</span> “'+esc(v)+'” · <i>Cô Hannah sẽ xem và chấm bài này.</i></div>';
+        ans.done=ans.tried.every(function(x){ return x; });
+        updateProgress();
+      };
     }
     b.classList.add('on'); b.textContent='■';
     cur={k:k, stop:finish};
     var t0=Date.now(), tm=setInterval(function(){ if(finished){ clearInterval(tm); return; } if(Date.now()-t0>15000) cur&&cur.stop(); if(Date.now()-t0>18000) finish(); },500);
-    /* Zalo/Messenger chặn micro → cho bé quay video ngắn (máy nào cũng quay được), AI nghe tiếng trong video để chấm */
+    /* Zalo/Messenger chặn micro → cho bé quay video ngắn hoặc gõ câu trả lời thay thế */
     function noMic(err){
-      finished=true; clearInterval(tm); if(recTm) clearInterval(recTm); cur=null; b.classList.remove('on'); b.textContent='🎤';
+      finished=true; clearInterval(tm); if(recTm) clearInterval(recTm); stopMeter(); cur=null; b.classList.remove('on'); b.textContent='🎤';
       var box=$('#say'+i+'_'+k);
       $('.fb2',box).innerHTML='<div class="small err" style="margin-top:8px">'+micErrorMsg(err)+'</div>'+
         '<div class="row" style="margin-top:6px"><button type="button" class="btn sm plain retry-mic">🔄 Thử lại micro</button>'+
-        '<label class="btn sm soft" style="display:inline-block">🎥 Quay / Record<input type="file" accept="video/*,audio/*" capture="user" style="display:none"></label></div>';
+        '<label class="btn sm soft" style="display:inline-block">🎥 Quay / Chọn file<input type="file" accept="video/*,audio/*" capture="user" style="display:none"></label>'+
+        '<button type="button" class="btn sm plain type-ans">⌨️ Gõ câu trả lời</button></div>';
       $('.retry-mic',box).onclick=function(){ b.click(); };
+      $('.type-ans',box).onclick=function(){ openTypeFallback(k); };
       $('input',box).onchange=function(){ var f=this.files&&this.files[0]; if(!f) return;
         if(f.size>25*1024*1024){ toast('Video dài quá, con quay ngắn thôi nhé (dưới 15 giây).'); return; }
         aiScore(k, f); };
@@ -3378,10 +3389,29 @@ function mountSay(act,i,el){
         try{
           stream=st; mr=newRecorder(st);
           mr.ondataavailable=function(e){ if(e.data&&e.data.size) chunks.push(e.data); };
-          startRecorderSafe(mr); startSR();
+          startRecorderSafe(mr);
+          var lastMx=0;
+          try{
+            var AC=window.AudioContext||window.webkitAudioContext;
+            if(AC){
+              ac=new AC(); var src=ac.createMediaStreamSource(st), an=ac.createAnalyser(); an.fftSize=256; src.connect(an);
+              var buf=new Uint8Array(an.frequencyBinCount);
+              ivLv=setInterval(function(){
+                an.getByteTimeDomainData(buf); var mx=0;
+                for(var bi=0;bi<buf.length;bi++){ var v=Math.abs(buf[bi]-128); if(v>mx) mx=v; }
+                lastMx=mx; if(mx>peak) peak=mx;
+              }, 120);
+            }
+          }catch(e){}
           var rt0=Date.now();
-          $('.fb2',box).innerHTML='<div class="small" style="margin-top:8px;color:var(--bad)"><b>🔴 Đang ghi âm… 0s</b> · Con nói xong bấm <b>■</b> để dừng</div>';
-          recTm=setInterval(function(){ if(finished){ clearInterval(recTm); return; } var s=Math.floor((Date.now()-rt0)/1000); $('.fb2',box).innerHTML='<div class="small" style="margin-top:8px;color:var(--bad)"><b>🔴 Đang ghi âm… '+s+'s</b> · Con nói xong bấm <b>■</b> để dừng</div>'; }, 500);
+          var drawRec=function(){
+            if(finished) return;
+            var s=Math.floor((Date.now()-rt0)/1000);
+            var lv=peak===0?'':' · '+(lastMx>4?'🔊 Nghe rõ tiếng con!':'🔈 Nói to gần micro hơn');
+            $('.fb2',box).innerHTML='<div class="small" style="margin-top:8px;color:var(--bad)"><b>🔴 Đang ghi âm… '+s+'s</b>'+lv+' · Bấm <b>■</b> để dừng</div>';
+          };
+          drawRec();
+          recTm=setInterval(drawRec, 350);
         }catch(e){ st.getTracks().forEach(function(t){ t.stop(); }); noMic(e); }
       }).catch(function(err){ if(gd) return; gd=true; clearTimeout(gt); noMic(err); });
     };
